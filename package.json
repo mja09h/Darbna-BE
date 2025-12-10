@@ -15,7 +15,11 @@
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.2",
     "express": "^5.2.1",
+    "mongoose": "^8.20.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/mongoose": "^5.11.96"
   }
 }
