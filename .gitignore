@@ -34,3 +34,10 @@ Thumbs.db
 # Testing
 coverage/
 
+# environment variables
+.env
+.env*
+!.env.example
+
+# uploads
+uploads/*
