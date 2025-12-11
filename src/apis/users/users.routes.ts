@@ -1,9 +1,30 @@
 import { Router } from 'express';
-import { getUsers } from './users.controller';
+import {
+    getUsers,
+    createUser,
+    updateUser,
+    deleteUser,
+    getUserById,
+    getUserByUsername,
+    followUser,
+    unfollowUser,
+    getFollowers,
+    getFollowing,
+    getUserProfile,
+} from './users.controller';
 
 const router = Router();
 
 router.get('/', getUsers);
-
+router.post('/', createUser);
+router.put('/:id', updateUser);
+router.delete('/:id', deleteUser);
+router.get('/username/:username', getUserByUsername);
+router.get('/:id', getUserById);
+router.post('/:id/follow', followUser);
+router.post('/:id/unfollow', unfollowUser);
+router.get('/:id/followers', getFollowers);
+router.get('/:id/following', getFollowing);
+router.get('/:id/profile', getUserProfile);
 
 export default router;

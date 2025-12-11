@@ -7,15 +7,17 @@ const userSchema = new mongoose.Schema({
     },
     username: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     email: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     phone: {
         type: String,
-        required: true
+        default: ''
     },
     country: {
         type: String,
@@ -24,6 +26,40 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: true
+    },
+    profilePicture: {
+        type: String,
+        default: ''
+    },
+    coverPicture: {
+        type: String,
+        default: ''
+    },
+    bio: {
+        type: String,
+        default: ''
+    },
+    followers: {
+        type: [mongoose.Schema.Types.ObjectId],
+        ref: 'User',
+        default: []
+    },
+    following: {
+        type: [mongoose.Schema.Types.ObjectId],
+        ref: 'User',
+        default: []
+    },
+    isAdmin: {
+        type: Boolean,
+        default: false
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
     }
 })
 
