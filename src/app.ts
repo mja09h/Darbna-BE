@@ -5,8 +5,10 @@ import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
 import usersRoutes from './apis/users/users.routes';
 
+import path from 'path';
+
 const app = express();
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
 connectDB();
 
 const PORT = process.env.PORT || 3000;
