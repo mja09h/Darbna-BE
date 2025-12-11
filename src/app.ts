@@ -1,15 +1,25 @@
 import express from 'express';
 import dotenv from 'dotenv';
-dotenv.config();
-
 import connectDB from './database';
+import { errorHandler } from './middlewares/errorHandler';
+import { notFound } from './middlewares/notFound';
+import usersRoutes from './apis/users/users.routes';
 
 const app = express();
+dotenv.config();
+connectDB();
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
-connectDB();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/users', usersRoutes);
+
+
+app.use(notFound);
+app.use(errorHandler);
 
 app.listen(Number(PORT), HOST, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);

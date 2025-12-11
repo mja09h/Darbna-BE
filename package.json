@@ -13,13 +13,18 @@
   "license": "ISC",
   "dependencies": {
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.2",
+    "bcrypt": "^6.0.0",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.20.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@types/mongoose": "^5.11.96"
+    "@types/bcrypt": "^6.0.0",
+    "@types/mongoose": "^5.11.96",
+    "@types/multer": "^2.0.0"
   }
 }
