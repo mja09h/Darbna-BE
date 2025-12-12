@@ -21,11 +21,21 @@ const userSchema = new mongoose.Schema({
     },
     country: {
         type: String,
-        required: true
+        default: ''
     },
     password: {
         type: String,
-        required: true
+    },
+    googleId: {
+        type: String,
+    },
+    appleId: {
+        type: String,
+    },
+    authProvider: {
+        type: String,
+        enum: ['local', 'google', 'apple'],
+        default: 'local'
     },
     profilePicture: {
         type: String,
