@@ -11,6 +11,7 @@ import {
     getFollowers,
     getFollowing,
     getUserProfile,
+    updatePassword,
 } from './users.controller';
 
 const router = Router();
@@ -18,6 +19,7 @@ const router = Router();
 router.get('/', getUsers);
 router.post('/', createUser);
 router.put('/:id', updateUser);
+router.put('/:id/password', updatePassword);
 router.delete('/:id', deleteUser);
 router.get('/username/:username', getUserByUsername);
 router.get('/:id', getUserById);
