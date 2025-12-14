@@ -8,6 +8,7 @@ import connectDB from "./database";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFound } from "./middlewares/notFound";
 import usersRoutes from "./apis/users/users.routes";
+import authRoutes from "./apis/auth/auth.routes";
 
 import path from "path";
 
@@ -44,6 +45,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/users", usersRoutes);
 app.use("/api/map", mapRouter);
+app.use("/api/auth", authRoutes);
+
 app.use(notFound);
 app.use(errorHandler);
 
@@ -61,7 +64,7 @@ const startServer = async () => {
     // Connect to database FIRST
     await connectDB();
     console.log("Database connected successfully");
-    
+
     // Then setup Socket.IO
     setupSocket(io);
     console.log("Socket.IO initialized");

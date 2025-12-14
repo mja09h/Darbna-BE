@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
     getUsers,
-    createUser,
+    register,
     updateUser,
     deleteUser,
     getUserById,
@@ -11,16 +11,22 @@ import {
     getFollowers,
     getFollowing,
     getUserProfile,
+    updatePassword,
+    login,
 } from './users.controller';
 
 const router = Router();
 
 router.get('/', getUsers);
-router.post('/', createUser);
+router.post('/', register);
+router.post('/login', login);
 router.put('/:id', updateUser);
+router.put('/:id/password', updatePassword);
 router.delete('/:id', deleteUser);
+
 router.get('/username/:username', getUserByUsername);
 router.get('/:id', getUserById);
+
 router.post('/:id/follow', followUser);
 router.post('/:id/unfollow', unfollowUser);
 router.get('/:id/followers', getFollowers);
