@@ -44,6 +44,9 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/users", usersRoutes);
 app.use("/api/map", mapRouter);
+app.use('/api/auth', authRoutes);
+
+
 app.use(notFound);
 app.use(errorHandler);
 
