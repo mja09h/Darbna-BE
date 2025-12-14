@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import http from "http";
+import cors from "cors";
 import { Server } from "socket.io";
 import { setupSocket } from "./socket";
 import mapRouter from "./apis/map/map.route";
@@ -29,16 +30,14 @@ process.on("uncaughtException", (error) => {
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
-
-const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || "localhost";
+// Add CORS middleware BEFORE other middleware
+app.use(
+  cors({
+    origin: "*", // Allow all origins (or specify your React Native app's origin)
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -49,6 +48,17 @@ app.use("/api/auth", authRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
+
+// Initialize Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+const PORT = process.env.PORT || 8000;
+const HOST = process.env.HOST || "0.0.0.0";
 
 // Initialize Socket.IO and database, then start server
 const startServer = async () => {
