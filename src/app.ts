@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
+import cors from 'cors';
 import connectDB from './database';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
@@ -16,6 +17,7 @@ connectDB();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
