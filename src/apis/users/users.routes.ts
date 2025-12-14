@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import upload from '../../middlewares/multer';
 import {
     getUsers,
     register,
@@ -20,7 +21,7 @@ const router = Router();
 router.get('/', getUsers);
 router.post('/', register);
 router.post('/login', login);
-router.put('/:id', updateUser);
+router.put('/:id', upload.single('profilePicture'), updateUser);
 router.put('/:id/password', updatePassword);
 router.delete('/:id', deleteUser);
 

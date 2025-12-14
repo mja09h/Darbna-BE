@@ -92,6 +92,7 @@ const login = async (req: Request, res: Response) => {
         res.status(200).json({ success: true, token, user: userResponse });
 
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ message: 'Error logging in', success: false });
     }
 }
@@ -99,33 +100,32 @@ const login = async (req: Request, res: Response) => {
 const updateUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, country, username, email, bio, profilePicture, coverPicture, phone } = req.body;
+        const { name, country, bio, phone, profilePicture } = req.body;
+        console.log('req.body', req.body);
 
-        const updateData: Record<string, any> = {};
-
-        if (name) updateData.name = name;
-        if (country) updateData.country = country;
-        if (username) updateData.username = username;
-        if (email) updateData.email = email;
-
-
-        if (bio !== undefined) updateData.bio = bio;
-
-        if (profilePicture !== undefined) updateData.profilePicture = profilePicture;
-        if (coverPicture !== undefined) updateData.coverPicture = coverPicture;
-
-        if (phone !== undefined) updateData.phone = phone;
-
-        updateData.updatedAt = new Date();
-
-        const user = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
+        const user = await User.findById(id);
 
         if (!user) {
             return res.status(404).json({ message: 'User not found', success: false });
         }
 
-        res.status(200).json({ success: true, data: user });
+        if (req.file) {
+            console.log('req.file', req.file);
+            user.profilePicture = `/uploads/${req.file.filename}`;
+        } else {
+            console.log('profilePicture not found');
+            delete user.profilePicture;
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            { $set: { ...req.body, profilePicture: user.profilePicture } },
+            { new: true }
+        )
+
+        res.status(200).json({ success: true, data: updatedUser });
     } catch (error) {
+        console.error('Update user error:', error);
         res.status(500).json({ message: 'Error updating user', success: false });
     }
 }
@@ -138,6 +138,7 @@ const updatePassword = async (req: Request, res: Response) => {
         // Actually, let's just make it return success: true if it did something, but it's empty.
         // Assuming it's a placeholder, I'll just add success: false to the error block.
     } catch (error) {
+        console.error('Update password error:', error);
         res.status(500).json({ message: 'Error updating password', success: false });
     }
 }
@@ -148,6 +149,7 @@ const deleteUser = async (req: Request, res: Response) => {
         const user = await User.findByIdAndDelete(id);
         res.status(200).json({ success: true, data: user });
     } catch (error) {
+        console.error('Delete user error:', error);
         res.status(500).json({ message: 'Error deleting user', success: false });
     }
 }
@@ -174,6 +176,7 @@ const getUserByUsername = async (req: Request, res: Response) => {
         }
         res.status(200).json({ success: true, data: user });
     } catch (error) {
+        console.error('Get user by username error:', error);
         res.status(500).json({ message: 'Error getting user by username', success: false });
     }
 }
@@ -201,6 +204,7 @@ const followUser = async (req: Request, res: Response) => {
 
         res.status(200).json({ success: true, data: targetUser });
     } catch (error) {
+        console.error('Error following user:', error);
         res.status(500).json({ message: 'Error following user', success: false });
     }
 }
@@ -224,6 +228,7 @@ const unfollowUser = async (req: Request, res: Response) => {
 
         res.status(200).json({ success: true, data: targetUser });
     } catch (error) {
+        console.error('Error unfollowing user:', error);
         res.status(500).json({ message: 'Error unfollowing user', success: false });
     }
 }
@@ -234,6 +239,7 @@ const getFollowers = async (req: Request, res: Response) => {
         const user = await User.findById(id);
         res.status(200).json({ success: true, data: user?.followers });
     } catch (error) {
+        console.error('Error getting followers:', error);
         res.status(500).json({ message: 'Error getting followers', success: false });
     }
 }
@@ -244,6 +250,7 @@ const getFollowing = async (req: Request, res: Response) => {
         const user = await User.findById(id);
         res.status(200).json({ success: true, data: user?.following });
     } catch (error) {
+        console.error('Error getting following:', error);
         res.status(500).json({ message: 'Error getting following', success: false });
     }
 }
@@ -257,6 +264,7 @@ const getUserProfile = async (req: Request, res: Response) => {
         }
         res.status(200).json({ success: true, data: user });
     } catch (error) {
+        console.error('Error getting user profile:', error);
         res.status(500).json({ message: 'Error getting user profile', success: false });
     }
 }

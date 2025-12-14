@@ -1,3 +1,12 @@
+import express from 'express';
+import dotenv from 'dotenv';
+import morgan from 'morgan';
+import cors from 'cors';
+import connectDB from './database';
+import { errorHandler } from './middlewares/errorHandler';
+import { notFound } from './middlewares/notFound';
+import usersRoutes from './apis/users/users.routes';
+import authRoutes from './apis/auth/auth.routes';
 import express from "express";
 import dotenv from "dotenv";
 import http from "http";
@@ -39,8 +48,11 @@ app.use(
   })
 );
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use("/api/users", usersRoutes);
 app.use("/api/map", mapRouter);
