@@ -101,6 +101,7 @@ const updateUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { name, country, bio, phone, profilePicture } = req.body;
+        console.log('req.body', req.body);
 
         const user = await User.findById(id);
 
@@ -109,18 +110,20 @@ const updateUser = async (req: Request, res: Response) => {
         }
 
         if (req.file) {
-            user.profilePicture = req.file.path;
+            console.log('req.file', req.file);
+            user.profilePicture = `/uploads/${req.file.filename}`;
         } else {
+            console.log('profilePicture not found');
             delete user.profilePicture;
         }
 
         const updatedUser = await User.findByIdAndUpdate(
             id,
-            { $set: req.body },
+            { $set: { ...req.body, profilePicture: user.profilePicture } },
             { new: true }
         )
 
-        res.status(200).json({ success: true, data: updatedUser });  
+        res.status(200).json({ success: true, data: updatedUser });
     } catch (error) {
         console.error('Update user error:', error);
         res.status(500).json({ message: 'Error updating user', success: false });

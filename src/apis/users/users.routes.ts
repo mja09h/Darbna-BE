@@ -21,7 +21,7 @@ const router = Router();
 router.get('/', getUsers);
 router.post('/', register);
 router.post('/login', login);
-router.put('/:id', upload.fields([{ name: 'profilePicture', maxCount: 1 }, { name: 'coverPicture', maxCount: 1 }]), updateUser);
+router.put('/:id', upload.single('profilePicture'), updateUser);
 router.put('/:id/password', updatePassword);
 router.delete('/:id', deleteUser);
 
