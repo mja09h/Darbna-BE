@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { Location } from "../../models/Location";
-import { Route } from "../../models/Route";
+import Routes from "../../models/Routes";
 import { POI } from "../../models/POI";
 
 export const getNearbyLocations = async (req: Request, res: Response) => {
@@ -47,7 +47,7 @@ export const getPOIsWithinPolygon = async (req: Request, res: Response) => {
 
 export const getAllRoutes = async (req: Request, res: Response) => {
   try {
-    const routes = await Route.find();
+    const routes = await Routes.find();
     res.json(routes);
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });

@@ -70,8 +70,23 @@ const userSchema = new mongoose.Schema({
     updatedAt: {
         type: Date,
         default: Date.now
+    },
+    location: {
+    type: {
+      type: String,
+      enum: ["Point"],
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
     }
-})
+  },
+  pushToken: { type: String },
+}, {
+    timestamps: true
+});
+
 
 const User = mongoose.model('User', userSchema);
 

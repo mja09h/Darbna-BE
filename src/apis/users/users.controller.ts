@@ -114,7 +114,7 @@ const updateUser = async (req: Request, res: Response) => {
             user.profilePicture = `/uploads/${req.file.filename}`;
         } else {
             console.log('profilePicture not found');
-            delete user.profilePicture;
+            delete (user as any).profilePicture;
         }
 
         const updatedUser = await User.findByIdAndUpdate(
