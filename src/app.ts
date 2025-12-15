@@ -14,6 +14,7 @@ import authRoutes from "./apis/auth/auth.routes";
 import sosRoutes from "./apis/SOS/SOS.route";
 import path from "path";
 import routesRoutes from "./apis/routes/routes.routes";
+import pinsRoutes from "./apis/pins/pins.route";
 
 // Load environment variables FIRST
 dotenv.config({ path: path.join(__dirname, "../.env") });
@@ -50,6 +51,8 @@ app.use("/api/map", mapRouter);
 app.use("/api/auth", authRoutes);
 app.use("/api/sos", sosRoutes);
 app.use("/api/routes", routesRoutes);
+app.use("/api/pins", pinsRoutes);
+
 app.use(notFound);
 app.use(errorHandler);
 
