@@ -14,6 +14,7 @@ import authRoutes from "./apis/auth/auth.routes";
 import sosRoutes from "./apis/SOS/SOS.route";
 import path from "path";
 import routesRoutes from "./apis/routes/routes.routes";
+import pinsRoutes from "./apis/pins/pins.route";
 
 // Load environment variables FIRST
 dotenv.config({ path: path.join(__dirname, "../.env") });
@@ -32,6 +33,14 @@ process.on("uncaughtException", (error) => {
 const app = express();
 const server = http.createServer(app);
 
+// Initialize Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
 // Add CORS middleware BEFORE other middleware
 app.use(
   cors({
@@ -45,21 +54,38 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
+// --- START: Changes from Reference Document ---
+// 1. Set the Socket.IO instance on the app object for use in controllers
+app.set("io", io);
+
+// 2. Add the SOS Alert route from the guide.
+// NOTE: This replaces the existing /api/sos route to align with the guide's structure.
+app.use("/api/sos", sosAlertRoutes);
+
+// 3. Basic root route from the guide
+app.get("/", (req, res) => {
+  res.send("Darbna API is running...");
+});
+
+// 4. Basic Socket.IO connection handler from the guide
+io.on("connection", (socket) => {
+  console.log(`User connected: ${socket.id}`);
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.id}`);
+  });
+});
+// --- END: Changes from Reference Document ---
+
+// Existing routes from the original app.ts (excluding the replaced /api/sos)
 app.use("/api/users", usersRoutes);
 app.use("/api/map", mapRouter);
 app.use("/api/auth", authRoutes);
-app.use("/api/sos", sosRoutes);
+// app.use("/api/sos", sosRoutes); // Replaced by sosAlertRoutes above
 app.use("/api/routes", routesRoutes);
+app.use("/api/pins", pinsRoutes);
+
 app.use(notFound);
 app.use(errorHandler);
-
-// Initialize Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
 
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -79,9 +105,15 @@ const startServer = async () => {
     await connectDB();
     console.log("Database connected successfully");
 
-    // Then setup Socket.IO
+    // Then setup Socket.IO (The original setupSocket call is kept for existing functionality)
     setupSocket(io);
     console.log("Socket.IO initialized");
+
+    // ✨ NEW: START BACKGROUND JOB FOR ALERT EXPIRATION
+    // This job runs periodically to check for expired SOS alerts and notify users
+    startAlertExpirationJob(io);
+    console.log("Alert expiration job started");
+    // ✨ END: BACKGROUND JOB INITIALIZATION
 
     // Finally start the server
     server.listen(Number(PORT), HOST, () => {
