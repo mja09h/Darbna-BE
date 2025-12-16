@@ -13,7 +13,7 @@ const SOS_RATE_LIMIT_MINUTES = 30;
 // CREATE SOS ALERT
 export const createSOSAlert = async (req: Request, res: Response) => {
   const { latitude, longitude } = req.body;
-  const userId = (req as any).user.id;
+  const userId = (req as any).user._id;
 
   try {
     const user = await User.findById(userId);
