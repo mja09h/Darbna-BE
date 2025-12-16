@@ -17,8 +17,8 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       routeType,
     } = req.body;
     const userId = req.user?._id;
-
-    // Validation
+    console.log("req.body", req.body.isPublic);
+    //Validation
     if (
       !name ||
       !path ||
@@ -27,12 +27,44 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       typeof distance !== "number" ||
       typeof duration !== "number"
     ) {
+      console.log("Missing or invalid required fields");
       return res
         .status(400)
         .json({ message: "Missing or invalid required fields" });
     }
 
+    // Validate path structure
+    if (!path.coordinates || !Array.isArray(path.coordinates)) {
+      return res
+        .status(400)
+        .json({ message: "Path coordinates must be an array" });
+    }
+
+    // Validate that LineString has at least 2 coordinates
+    if (path.coordinates.length < 2) {
+      return res.status(400).json({
+        message:
+          "GeoJSON LineString must have at least 2 coordinates (vertices)",
+      });
+    }
+
+    // Validate each coordinate is a valid [longitude, latitude] pair
+    for (const coord of path.coordinates) {
+      if (
+        !Array.isArray(coord) ||
+        coord.length !== 2 ||
+        typeof coord[0] !== "number" ||
+        typeof coord[1] !== "number"
+      ) {
+        return res.status(400).json({
+          message:
+            "Each coordinate must be an array of two numbers [longitude, latitude]",
+        });
+      }
+    }
+
     if (typeof isPublic !== "boolean") {
+      console.log("isPublic must be a boolean");
       return res.status(400).json({ message: "isPublic must be a boolean" });
     }
 
@@ -40,14 +72,17 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       !routeType ||
       !["Running", "Cycling", "Walking", "Hiking", "Other"].includes(routeType)
     ) {
+      console.log("Invalid route type");
       return res.status(400).json({ message: "Invalid route type" });
     }
 
     if (!description || description.trim().length === 0) {
+      console.log("Description is required");
       return res.status(400).json({ message: "Description is required" });
     }
 
     if (description.length > 250) {
+      console.log("Description must not exceed 250 characters");
       return res
         .status(400)
         .json({ message: "Description must not exceed 250 characters" });
@@ -68,7 +103,8 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(newRoute);
   } catch (error) {
-    res.status(500).json({ message: "Error creating route", error });
+    console.log("Error creating route", error);
+    return res.status(500).json({ message: "Error creating route", error });
   }
 };
 
