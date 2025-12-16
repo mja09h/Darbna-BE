@@ -21,6 +21,19 @@ export interface IRoute extends Document {
   distance: number;
   duration: number;
   points: IPoint[];
+
+  // NEW FIELDS
+  isPublic: boolean;
+  routeType: string;
+  screenshot?: {
+    url: string;
+    uploadedAt: Date;
+  };
+  images?: Array<{
+    url: string;
+    uploadedAt: Date;
+  }>;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +67,22 @@ const routeSchema: Schema = new Schema(
     distance: { type: Number, default: 0 },
     duration: { type: Number, default: 0 },
     points: [pointSchema],
+    isPublic: { type: Boolean, default: false },
+    routeType: {
+      type: String,
+      enum: ["Running", "Cycling", "Walking", "Hiking", "Other"],
+      required: true,
+    },
+    screenshot: {
+      url: { type: String },
+      uploadedAt: { type: Date },
+    },
+    images: [
+      {
+        url: { type: String },
+        uploadedAt: { type: Date },
+      },
+    ],
   },
   { timestamps: true }
 );
