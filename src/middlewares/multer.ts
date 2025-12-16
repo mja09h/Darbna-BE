@@ -16,4 +16,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+// Middleware for handling multiple images (max 4) for pins
+export const uploadPinImages = upload.array('images', 4);
+
 export default upload;

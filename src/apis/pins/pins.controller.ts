@@ -1,17 +1,17 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Pin, { PIN_CATEGORIES } from "../../models/Pins";
 import User from "../../models/Users";
 
+
 const createPin = async (req: Request, res: Response) => {
     try {
-        // Validate required fields FIRST before creating any objects
         const { title, description, category, isPublic, userId, location, latitude, longitude } = req.body;
 
         if (!title || !category || !userId) {
             return res.status(400).json({ message: "Missing required fields: title, category, and userId are required" });
         }
 
-        // Validate category is one of the predefined categories
         if (!PIN_CATEGORIES.includes(category)) {
             return res.status(400).json({
                 message: "Invalid category",
@@ -19,46 +19,47 @@ const createPin = async (req: Request, res: Response) => {
             });
         }
 
-        // Validate user exists
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Handle location format - support both GeoJSON format and separate lat/lng
         let locationData;
         if (location && location.coordinates) {
-            // Already in GeoJSON format
+
             locationData = {
                 type: "Point",
                 coordinates: location.coordinates // [longitude, latitude]
             };
+
         } else if (latitude !== undefined && longitude !== undefined) {
-            // Convert from separate lat/lng to GeoJSON
+
             locationData = {
                 type: "Point",
                 coordinates: [parseFloat(longitude), parseFloat(latitude)] // GeoJSON: [lng, lat]
             };
+
         } else {
             return res.status(400).json({ message: "Location is required. Provide either location object with coordinates or latitude and longitude" });
         }
 
-        // Validate coordinates are valid numbers
         if (isNaN(locationData.coordinates[0]) || isNaN(locationData.coordinates[1])) {
             return res.status(400).json({ message: "Invalid location coordinates" });
         }
 
-        // Handle image - optional
-        let imagePath = "";
-        if (req.file) {
-            imagePath = `/uploads/${req.file.filename}`;
+        // Handle multiple images (max 4)
+        let imagePaths: string[] = [];
+        if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+            if (req.files.length > 4) {
+                return res.status(400).json({ message: "Maximum 4 images allowed per pin" });
+            }
+            imagePaths = req.files.map((file: Express.Multer.File) => `/uploads/${file.filename}`);
         }
 
-        // Create pin with validated data
         const newPin = new Pin({
             title,
             description: description || "",
-            image: imagePath,
+            images: imagePaths,
             category,
             isPublic: isPublic || false,
             userId,
@@ -71,7 +72,6 @@ const createPin = async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error('Create pin error:', error);
-        // Provide more specific error messages
         if (error.name === 'ValidationError') {
             return res.status(400).json({ message: "Validation error", error: error.message });
         }
@@ -97,6 +97,14 @@ const getPins = async (req: Request, res: Response) => {
 const getPinById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+
+        // Validate that id is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                message: "Invalid pin ID format. Pin ID must be a valid MongoDB ObjectId."
+            });
+        }
+
         const pin = await Pin.findById(id).populate("userId", "username _id");
 
         if (!pin) {
@@ -113,15 +121,21 @@ const getPinById = async (req: Request, res: Response) => {
 const updatePin = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, description, category, isPublic, userId, location, latitude, longitude } = req.body;
 
-        // Build update object with only provided fields
+        // Validate that id is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                message: "Invalid pin ID format. Pin ID must be a valid MongoDB ObjectId."
+            });
+        }
+
+        const { title, description, category, isPublic, userId, location, latitude, longitude, images } = req.body;
+
         const updateData: any = {};
 
         if (title) updateData.title = title;
         if (description !== undefined) updateData.description = description || "";
         if (category) {
-            // Validate category if provided
             if (!PIN_CATEGORIES.includes(category)) {
                 return res.status(400).json({
                     message: "Invalid category",
@@ -133,12 +147,21 @@ const updatePin = async (req: Request, res: Response) => {
         if (isPublic !== undefined) updateData.isPublic = isPublic;
         if (userId) updateData.userId = userId;
 
-        // Handle image update if new file is uploaded
-        if (req.file) {
-            updateData.image = `/uploads/${req.file.filename}`;
+        // Handle multiple images (max 4)
+        // If images array is provided in body, use it (allows clearing images with empty array)
+        if (images !== undefined && Array.isArray(images)) {
+            if (images.length > 4) {
+                return res.status(400).json({ message: "Maximum 4 images allowed per pin" });
+            }
+            updateData.images = images;
+        } else if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+            // If files are uploaded, use them
+            if (req.files.length > 4) {
+                return res.status(400).json({ message: "Maximum 4 images allowed per pin" });
+            }
+            updateData.images = req.files.map((file: Express.Multer.File) => `/uploads/${file.filename}`);
         }
 
-        // Handle location update
         if (location || (latitude !== undefined && longitude !== undefined)) {
             let locationData;
             if (location && location.coordinates) {
@@ -179,6 +202,14 @@ const updatePin = async (req: Request, res: Response) => {
 const deletePin = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+
+        // Validate that id is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                message: "Invalid pin ID format. Pin ID must be a valid MongoDB ObjectId."
+            });
+        }
+
         const pin = await Pin.findByIdAndDelete(id);
 
         if (!pin) {
@@ -195,10 +226,18 @@ const deletePin = async (req: Request, res: Response) => {
 const getPinsByUserId = async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
+
+        // Validate that userId is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({
+                message: "Invalid user ID format. User ID must be a valid MongoDB ObjectId."
+            });
+        }
+
         const pins = await Pin.find({ userId }).populate("userId", "username _id");
 
-        if (!pins) {
-            return res.status(404).json({ message: "No pins found" });
+        if (!pins || pins.length === 0) {
+            return res.status(404).json({ message: "No pins found for this user" });
         }
 
         res.status(200).json(pins);

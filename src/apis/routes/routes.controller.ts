@@ -2,7 +2,6 @@ import { Response } from "express";
 import Route from "../../models/Routes";
 import { AuthRequest } from "../../types/User";
 
-// Create a new route
 export const createRoute = async (req: AuthRequest, res: Response) => {
   try {
     const { name, description, path, startTime, points } = req.body;
