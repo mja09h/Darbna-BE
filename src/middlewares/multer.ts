@@ -31,4 +31,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per file
 });
 
+// Middleware for handling multiple images (max 4) for pins
+export const uploadPinImages = upload.array('images', 4);
+
 export default upload;

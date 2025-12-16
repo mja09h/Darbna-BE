@@ -14,9 +14,7 @@ import authRoutes from "./apis/auth/auth.routes";
 import sosRoutes from "./apis/SOS/SOS.route";
 import path from "path";
 import routesRoutes from "./apis/routes/routes.routes";
-import sosAlertRoutes from "./apis/SOS/SOS.route"; // Route from the reference document
-// ✨ NEW: Import the alert expiration job
-import { startAlertExpirationJob } from "./jobs/alertExpiration";
+import pinsRoutes from "./apis/pins/pins.route";
 
 // Load environment variables FIRST
 dotenv.config({ path: path.join(__dirname, "../.env") });
@@ -84,8 +82,8 @@ app.use("/api/map", mapRouter);
 app.use("/api/auth", authRoutes);
 // app.use("/api/sos", sosRoutes); // Replaced by sosAlertRoutes above
 app.use("/api/routes", routesRoutes);
+app.use("/api/pins", pinsRoutes);
 
-// Error handling middleware
 app.use(notFound);
 app.use(errorHandler);
 
