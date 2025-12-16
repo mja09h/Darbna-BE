@@ -2,45 +2,38 @@
 import { Schema, model, Document } from "mongoose";
 
 export interface ISOSAlert extends Document {
-  user: Schema.Types.ObjectId; // Reference to the User who sent it
+  user: Schema.Types.ObjectId;
   location: {
     type: string;
-    coordinates: [number, number]; // [longitude, latitude]
+    coordinates: [number, number];
   };
   status: "ACTIVE" | "RESOLVED";
+  helpers: Schema.Types.ObjectId[]; // <-- ADDED
   resolvedAt?: Date;
+  expireAt: Date; // <-- ADDED
   createdAt: Date;
 }
 
 const SOSAlertSchema = new Schema<ISOSAlert>(
   {
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "User", // This links the alert to a user
-      required: true,
-    },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        required: true,
-      },
-      coordinates: {
-        type: [Number],
-        required: true,
-      },
+      type: { type: String, enum: ["Point"], required: true },
+      coordinates: { type: [Number], required: true },
     },
-    status: {
-      type: String,
-      enum: ["ACTIVE", "RESOLVED"],
-      default: "ACTIVE",
-    },
+    status: { type: String, enum: ["ACTIVE", "RESOLVED"], default: "ACTIVE" },
+    helpers: [{ type: Schema.Types.ObjectId, ref: "User" }], // <-- ADDED
     resolvedAt: { type: Date },
+    expireAt: {
+      // <-- ADDED
+      type: Date,
+      default: () => new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+      expires: 0, // TTL index
+    },
   },
   { timestamps: true }
-); // Automatically adds createdAt and updatedAt
+);
 
-// Add indexes for faster queries
 SOSAlertSchema.index({ location: "2dsphere" });
 SOSAlertSchema.index({ status: 1, createdAt: -1 });
 

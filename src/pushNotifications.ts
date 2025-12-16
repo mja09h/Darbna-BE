@@ -65,3 +65,71 @@ export const sendSosAlertToAllUsers = async (alert: ISOSAlert) => {
     console.error("Error in sendSosAlertToAllUsers service:", error);
   }
 };
+
+export const sendHelpOfferNotification = async (
+  user: any,
+  helperUsername: string
+) => {
+  console.log("Preparing to send help offer notification...");
+
+  try {
+    if (!user.pushToken) {
+      console.log("User has no push token. Skipping notification.");
+      return;
+    }
+
+    // Ensure the token is a valid Expo push token.
+    if (!Expo.isExpoPushToken(user.pushToken)) {
+      console.error(
+        `Push token ${user.pushToken} is not a valid Expo push token`
+      );
+      return;
+    }
+
+    const message: ExpoPushMessage = {
+      to: user.pushToken,
+      sound: "default",
+      title: "✅ Help is on the way!",
+      body: `${helperUsername} is offering to help you`,
+      badge: 1,
+    };
+
+    const ticket = await expo.sendPushNotificationsAsync([message]);
+    console.log("Help offer notification ticket received:", ticket);
+  } catch (error) {
+    console.error("Error in sendHelpOfferNotification service:", error);
+  }
+};
+
+// ✨ NEW: Send notification when an SOS alert expires after 2 hours
+export const sendAlertExpiredNotification = async (sosSender: any) => {
+  console.log("Preparing to send alert expired notification...");
+
+  try {
+    if (!sosSender.pushToken) {
+      console.log("User has no push token. Skipping notification.");
+      return;
+    }
+
+    // Ensure the token is a valid Expo push token.
+    if (!Expo.isExpoPushToken(sosSender.pushToken)) {
+      console.error(
+        `Push token ${sosSender.pushToken} is not a valid Expo push token`
+      );
+      return;
+    }
+
+    const message: ExpoPushMessage = {
+      to: sosSender.pushToken,
+      sound: "default",
+      title: "⏰ SOS Alert Expired",
+      body: "Your SOS alert has expired after 2 hours.",
+      badge: 1,
+    };
+
+    const ticket = await expo.sendPushNotificationsAsync([message]);
+    console.log("Alert expired notification ticket received:", ticket);
+  } catch (error) {
+    console.error("Error in sendAlertExpiredNotification service:", error);
+  }
+};
