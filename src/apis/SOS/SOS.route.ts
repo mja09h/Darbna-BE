@@ -6,14 +6,18 @@ import {
   offerHelp,
   cancelHelp,
 } from "./SOS.controller";
-import { authMiddleware } from "../../middlewares/auth";
+import { auth } from "../../middlewares/auth";
 
 const router = Router();
 
-router.post("/create", authMiddleware, createSOSAlert);
-router.get("/active", authMiddleware, getActiveSOSAlerts);
-router.put("/:alertId/resolve", authMiddleware, resolveSOSAlert);
-router.post("/:alertId/help", authMiddleware, offerHelp);
-router.post("/:alertId/cancel-help", authMiddleware, cancelHelp);
+// Public endpoint - anyone can view active SOS alerts for safety reasons
+// Note: This endpoint requires location query params but no auth token
+router.get("/active", getActiveSOSAlerts);
+
+// Protected endpoints - require authentication
+router.post("/create", auth, createSOSAlert);
+router.put("/:alertId/resolve", auth, resolveSOSAlert);
+router.post("/:alertId/help", auth, offerHelp);
+router.post("/:alertId/cancel-help", auth, cancelHelp);
 
 export default router;

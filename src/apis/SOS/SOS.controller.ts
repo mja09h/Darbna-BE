@@ -1,4 +1,4 @@
-// src/apis/SOS/SOS.controller.ts
+// src/apis/sosAlertController.ts
 import { Request, Response } from "express";
 import SOSAlert from "../../models/SOSAlert";
 import User, { IUser } from "../../models/Users";
@@ -6,6 +6,7 @@ import {
   sendSosAlertToAllUsers,
   sendHelpOfferNotification,
 } from "../../pushNotifications";
+import { AuthRequest } from "../../types/User";
 import mongoose from "mongoose";
 
 const SOS_RATE_LIMIT_MINUTES = 30;
@@ -13,9 +14,18 @@ const SOS_RATE_LIMIT_MINUTES = 30;
 // CREATE SOS ALERT
 export const createSOSAlert = async (req: Request, res: Response) => {
   const { latitude, longitude } = req.body;
-  const userId = (req as any).user._id;
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?._id;
 
   try {
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      return res.status(400).json({ message: "Invalid coordinates provided" });
+    }
+
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -44,7 +54,8 @@ export const createSOSAlert = async (req: Request, res: Response) => {
 
     res.status(201).json(alertWithUser);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Error creating SOS alert:", error);
+    res.status(500).json({ message: "Server error while creating SOS alert" });
   }
 };
 
@@ -92,16 +103,22 @@ export const getActiveSOSAlerts = async (req: Request, res: Response) => {
     ]);
     res.status(200).json(alerts);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Error fetching active alerts:", error);
+    res.status(500).json({ message: "Server error while fetching active alerts" });
   }
 };
 
 // OFFER HELP
 export const offerHelp = async (req: Request, res: Response) => {
   const { alertId } = req.params;
-  const helperId = (req as any).user.id;
+  const authReq = req as AuthRequest;
+  const helperId = authReq.user?._id;
 
   try {
+    if (!helperId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const alert = await SOSAlert.findById(alertId).populate(
       "user",
       "username phone pushToken"
@@ -111,16 +128,16 @@ export const offerHelp = async (req: Request, res: Response) => {
     // Cast populated user to IUser type
     const populatedUser = alert.user as unknown as IUser;
 
-    if (populatedUser._id.toString() === helperId)
+    if (populatedUser._id.toString() === helperId.toString())
       return res
         .status(400)
         .json({ message: "Cannot help with your own alert" });
 
     // Use string comparison instead of ObjectId comparison
-    if (alert.helpers.some((id) => id.toString() === helperId))
+    if (alert.helpers.some((id) => id.toString() === helperId.toString()))
       return res.status(400).json({ message: "You are already helping" });
 
-    // Push the string ID - Mongoose will convert it
+    // Push the helper ID
     alert.helpers.push(helperId as any);
     await alert.save();
 
@@ -136,6 +153,7 @@ export const offerHelp = async (req: Request, res: Response) => {
       phoneNumber: populatedUser.phone,
     });
   } catch (error) {
+    console.error("Error offering help:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -143,14 +161,19 @@ export const offerHelp = async (req: Request, res: Response) => {
 // CANCEL HELP
 export const cancelHelp = async (req: Request, res: Response) => {
   const { alertId } = req.params;
-  const helperId = (req as any).user.id;
+  const authReq = req as AuthRequest;
+  const helperId = authReq.user?._id;
 
   try {
+    if (!helperId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const alert = await SOSAlert.findById(alertId);
     if (!alert) return res.status(404).json({ message: "Alert not found" });
 
     const helperIndex = alert.helpers.findIndex(
-      (id) => id.toString() === helperId
+      (id) => id.toString() === helperId.toString()
     );
     if (helperIndex === -1)
       return res.status(400).json({ message: "You were not helping" });
@@ -166,11 +189,53 @@ export const cancelHelp = async (req: Request, res: Response) => {
 
     res.status(200).json({ message: "You are no longer helping" });
   } catch (error) {
+    console.error("Error canceling help:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// RESOLVE SOS ALERT (Your existing code for this function can remain)
+// RESOLVE SOS ALERT
 export const resolveSOSAlert = async (req: Request, res: Response) => {
-  // ... your existing implementation ...
+  const { alertId } = req.params;
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?._id;
+
+  try {
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const alert = await SOSAlert.findById(alertId);
+
+    if (!alert) {
+      return res.status(404).json({ message: "Alert not found" });
+    }
+
+    // Authorization check: Only the user who created the alert can resolve it
+    if (alert.user.toString() !== userId.toString()) {
+      return res
+        .status(403)
+        .json({ message: "User not authorized to resolve this alert" });
+    }
+
+    if (alert.status === "RESOLVED") {
+      return res
+        .status(400)
+        .json({ message: "Alert has already been resolved" });
+    }
+
+    alert.status = "RESOLVED";
+    alert.resolvedAt = new Date();
+    await alert.save();
+
+    // --- Real-Time Notification ---
+    const io = req.app.get("io");
+    io.emit("sos-alert-resolved", { alertId: alert._id.toString() });
+    // -----------------------------
+
+    res.status(200).json(alert);
+  } catch (error) {
+    console.error("Error resolving SOS alert:", error);
+    res.status(500).json({ message: "Server error while resolving alert" });
+  }
 };

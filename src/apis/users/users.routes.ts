@@ -15,23 +15,25 @@ import {
     updatePassword,
     login,
 } from './users.controller';
+import { auth } from '../../middlewares/auth';
 
 const router = Router();
 
-router.get('/', getUsers);
+// Public endpoints - registration, login, and public profile viewing
 router.post('/', register);
 router.post('/login', login);
-router.put('/:id', upload.single('profilePicture'), updateUser);
-router.put('/:id/password', updatePassword);
-router.delete('/:id', deleteUser);
-
 router.get('/username/:username', getUserByUsername);
 router.get('/:id', getUserById);
-
-router.post('/:id/follow', followUser);
-router.post('/:id/unfollow', unfollowUser);
-router.get('/:id/followers', getFollowers);
-router.get('/:id/following', getFollowing);
 router.get('/:id/profile', getUserProfile);
+
+// Protected endpoints - require authentication
+router.get('/', auth, getUsers); // User discovery may require auth
+router.put('/:id', auth, upload.single('profilePicture'), updateUser);
+router.put('/:id/password', auth, updatePassword);
+router.delete('/:id', auth, deleteUser);
+router.post('/:id/follow', auth, followUser);
+router.post('/:id/unfollow', auth, unfollowUser);
+router.get('/:id/followers', auth, getFollowers);
+router.get('/:id/following', auth, getFollowing);
 
 export default router;
