@@ -15,6 +15,7 @@ import sosRoutes from "./apis/SOS/SOS.route";
 import path from "path";
 import routesRoutes from "./apis/routes/routes.routes";
 import pinsRoutes from "./apis/pins/pins.route";
+import { startAlertExpirationJob } from "./jobs/alertExpiration";
 
 // Load environment variables FIRST
 dotenv.config({ path: path.join(__dirname, "../.env") });
@@ -60,7 +61,7 @@ app.set("io", io);
 
 // 2. Add the SOS Alert route from the guide.
 // NOTE: This replaces the existing /api/sos route to align with the guide's structure.
-app.use("/api/sos", sosAlertRoutes);
+app.use("/api/sos", sosRoutes);
 
 // 3. Basic root route from the guide
 app.get("/", (req, res) => {
