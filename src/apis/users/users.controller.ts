@@ -6,10 +6,14 @@ import appleSignin from "apple-signin-auth";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "../../types/User";
 
-const GOOGLE_CLIENT_ID =
-  "956480809434-gc2alto3oma2clc1u8svqp0q0ondu3mo.apps.googleusercontent.com";
+// Google OAuth Client IDs for different platforms
+const GOOGLE_CLIENT_IDS = [
+    "786920296014-tp81ql4r61h50mrobbt9g0hajuvc95l3.apps.googleusercontent.com", // Web
+    "786920296014-i0kmog68ov1fia1ro2ri0qs94dmm30l8.apps.googleusercontent.com", // Android
+    "786920296014-a33qijp2m85ka1p3qjp0vglsdechd7mq.apps.googleusercontent.com", // iOS
+];
 const APPLE_BUNDLE_ID = "com.darbna.app";
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client();
 
 const getUsers = async (req: Request, res: Response) => {
     try {
@@ -37,12 +41,11 @@ const register = async (req: Request, res: Response) => {
             });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
+        // Let the User model's pre-save hook handle password hashing
         const user = await User.create({
             username,
             email,
-            password: hashedPassword,
+            password: password, // Pass plain password, pre-save hook will hash it
             name,
             country,
         });
@@ -92,7 +95,7 @@ const login = async (req: Request, res: Response) => {
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
-            console.log("Invalid password");
+            console.log("Password comparison failed for user:", user.email || user.username);
             return res
                 .status(400)
                 .json({ message: "Invalid password", success: false });
@@ -115,135 +118,134 @@ const login = async (req: Request, res: Response) => {
 };
 
 const updateUser = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { name, country, bio, phone, profilePicture } = req.body;
-    const authReq = req as AuthRequest;
-    console.log("req.body", req.body);
+    try {
+        const { id } = req.params;
+        const { name, country, bio, phone, profilePicture } = req.body;
+        const authReq = req as AuthRequest;
+        console.log("req.body", req.body);
 
-    // Verify user is updating their own profile
-    if (authReq.user?._id?.toString() !== id) {
-      return res.status(403).json({
-        message: "You can only update your own profile",
-        success: false,
-      });
+        // Verify user is updating their own profile
+        if (authReq.user?._id?.toString() !== id) {
+            return res.status(403).json({
+                message: "You can only update your own profile",
+                success: false,
+            });
+        }
+
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res
+                .status(404)
+                .json({ message: "User not found", success: false });
+        }
+
+        if (req.file) {
+            console.log("req.file", req.file);
+            user.profilePicture = `/uploads/${req.file.filename}`;
+        } else {
+            console.log("profilePicture not found");
+            delete (user as any).profilePicture;
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            { $set: { ...req.body, profilePicture: user.profilePicture } },
+            { new: true }
+        );
+
+        res.status(200).json({ success: true, data: updatedUser });
+    } catch (error) {
+        console.error("Update user error:", error);
+        res.status(500).json({ message: "Error updating user", success: false });
     }
-
-    const user = await User.findById(id);
-
-    if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
-    }
-
-    if (req.file) {
-      console.log("req.file", req.file);
-      user.profilePicture = `/uploads/${req.file.filename}`;
-    } else {
-      console.log("profilePicture not found");
-      delete (user as any).profilePicture;
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { $set: { ...req.body, profilePicture: user.profilePicture } },
-      { new: true }
-    );
-
-    res.status(200).json({ success: true, data: updatedUser });
-  } catch (error) {
-    console.error("Update user error:", error);
-    res.status(500).json({ message: "Error updating user", success: false });
-  }
 }
 
 const updatePassword = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { oldPassword, newPassword } = req.body;
-    const authReq = req as AuthRequest;
+    try {
+        const { id } = req.params;
+        const { oldPassword, newPassword } = req.body;
+        const authReq = req as AuthRequest;
 
-    // Verify user is updating their own password
-    if (authReq.user?._id?.toString() !== id) {
-      return res.status(403).json({
-        message: "You can only update your own password",
-        success: false,
-      });
+        // Verify user is updating their own password
+        if (authReq.user?._id?.toString() !== id) {
+            return res.status(403).json({
+                message: "You can only update your own password",
+                success: false,
+            });
+        }
+
+        if (!newPassword) {
+            return res
+                .status(400)
+                .json({ message: "New password is required", success: false });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res
+                .status(404)
+                .json({ message: "User not found", success: false });
+        }
+
+        // If user has a password, verify old password
+        if (user.password) {
+            if (!oldPassword) {
+                return res
+                    .status(400)
+                    .json({ message: "Old password is required", success: false });
+            }
+            const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+            if (!isPasswordValid) {
+                return res
+                    .status(400)
+                    .json({ message: "Invalid old password", success: false });
+            }
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update password
+        user.password = hashedPassword;
+        await user.save();
+
+        res
+            .status(200)
+            .json({ message: "Password updated successfully", success: true });
+    } catch (error) {
+        console.error("Update password error:", error);
+        res
+            .status(500)
+            .json({ message: "Error updating password", success: false });
     }
-
-    if (!newPassword) {
-      return res
-        .status(400)
-        .json({ message: "New password is required", success: false });
-    }
-
-    const user = await User.findById(id);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
-    }
-
-    // If user has a password, verify old password
-    if (user.password) {
-      if (!oldPassword) {
-        return res
-          .status(400)
-          .json({ message: "Old password is required", success: false });
-      }
-      const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
-      if (!isPasswordValid) {
-        return res
-          .status(400)
-          .json({ message: "Invalid old password", success: false });
-      }
-    }
-
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    // Update password
-    user.password = hashedPassword;
-    await user.save();
-
-    res
-      .status(200)
-      .json({ message: "Password updated successfully", success: true });
-  } catch (error) {
-    console.error("Update password error:", error);
-    res
-      .status(500)
-      .json({ message: "Error updating password", success: false });
-  }
-};
->>>>>>> e0cdced4e8518576ab404574aba0676c7e9fc149
+}
 
 const deleteUser = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const authReq = req as AuthRequest;
+    try {
+        const { id } = req.params;
+        const authReq = req as AuthRequest;
 
-    // Verify user is deleting their own account
-    if (authReq.user?._id?.toString() !== id) {
-      return res.status(403).json({
-        message: "You can only delete your own account",
-        success: false,
-      });
-    }
+        // Verify user is deleting their own account
+        if (authReq.user?._id?.toString() !== id) {
+            return res.status(403).json({
+                message: "You can only delete your own account",
+                success: false,
+            });
+        }
 
-    const user = await User.findByIdAndDelete(id);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
+        const user = await User.findByIdAndDelete(id);
+        if (!user) {
+            return res
+                .status(404)
+                .json({ message: "User not found", success: false });
+        }
+        res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        console.error("Delete user error:", error);
+        res.status(500).json({ message: "Error deleting user", success: false });
     }
-    res.status(200).json({ success: true, data: user });
-  } catch (error) {
-    console.error("Delete user error:", error);
-    res.status(500).json({ message: "Error deleting user", success: false });
-  }
 };
 
 const getUserById = async (req: Request, res: Response) => {
@@ -282,54 +284,70 @@ const getUserByUsername = async (req: Request, res: Response) => {
 };
 
 const followUser = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const authReq = req as AuthRequest;
-    const userId = authReq.user?._id?.toString();
+    try {
+        const { id } = req.params;
+        const authReq = req as AuthRequest;
+        const userId = authReq.user?._id?.toString();
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized", success: false });
-    }
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized", success: false });
+        }
 
-    if (id === userId) {
-      return res
-        .status(400)
-        .json({ message: "You cannot follow yourself", success: false });
-    }
+        if (id === userId) {
+            return res
+                .status(400)
+                .json({ message: "You cannot follow yourself", success: false });
+        }
 
-    const targetUser = await User.findByIdAndUpdate(
-      id,
-      { $addToSet: { followers: userId } },
-      { new: true }
-    );
+        const targetUser = await User.findByIdAndUpdate(
+            id,
+            { $addToSet: { followers: userId } },
+            { new: true }
+        );
 
-    if (!targetUser) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
+        if (!targetUser) {
+            return res
+                .status(404)
+                .json({ message: "User not found", success: false });
+        }
+
+        await User.findByIdAndUpdate(userId, { $addToSet: { following: id } });
+
+        res.status(200).json({ success: true, data: targetUser });
+    } catch (error) {
+        console.error("Error following user:", error);
+        res.status(500).json({ message: "Error following user", success: false });
     }
 }
 
 const unfollowUser = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const authReq = req as AuthRequest;
-    const userId = authReq.user?._id?.toString();
+    try {
+        const { id } = req.params;
+        const authReq = req as AuthRequest;
+        const userId = authReq.user?._id?.toString();
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized", success: false });
-    }
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized", success: false });
+        }
 
-    const targetUser = await User.findByIdAndUpdate(
-      id,
-      { $pull: { followers: userId } },
-      { new: true }
-    );
+        const targetUser = await User.findByIdAndUpdate(
+            id,
+            { $pull: { followers: userId } },
+            { new: true }
+        );
 
-    if (!targetUser) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
+        if (!targetUser) {
+            return res
+                .status(404)
+                .json({ message: "User not found", success: false });
+        }
+
+        await User.findByIdAndUpdate(userId, { $pull: { following: id } });
+
+        res.status(200).json({ success: true, data: targetUser });
+    } catch (error) {
+        console.error("Error unfollowing user:", error);
+        res.status(500).json({ message: "Error unfollowing user", success: false });
     }
 }
 
@@ -344,7 +362,7 @@ const getFollowers = async (req: Request, res: Response) => {
             .status(500)
             .json({ message: "Error getting followers", success: false });
     }
-};
+}
 
 const getFollowing = async (req: Request, res: Response) => {
     try {
@@ -357,7 +375,7 @@ const getFollowing = async (req: Request, res: Response) => {
             .status(500)
             .json({ message: "Error getting following", success: false });
     }
-};
+}
 
 const getUserProfile = async (req: Request, res: Response) => {
     try {
@@ -375,14 +393,17 @@ const getUserProfile = async (req: Request, res: Response) => {
             .status(500)
             .json({ message: "Error getting user profile", success: false });
     }
-};
+}
 
 const googleLogin = async (req: Request, res: Response) => {
     try {
         const { idToken } = req.body;
+
+        // Verify token against all client IDs (Web, Android, iOS)
+        // The audience parameter accepts an array of client IDs
         const ticket = await googleClient.verifyIdToken({
             idToken,
-            audience: GOOGLE_CLIENT_ID,
+            audience: GOOGLE_CLIENT_IDS,
         });
         const payload = ticket.getPayload();
 
@@ -428,7 +449,7 @@ const googleLogin = async (req: Request, res: Response) => {
         console.error(error);
         res.status(500).json({ message: "Google login failed", success: false });
     }
-};
+}
 
 const appleLogin = async (req: Request, res: Response) => {
     try {
@@ -490,7 +511,7 @@ const appleLogin = async (req: Request, res: Response) => {
         console.error(error);
         res.status(500).json({ message: "Apple login failed", success: false });
     }
-};
+}
 
 export {
     getUsers,
