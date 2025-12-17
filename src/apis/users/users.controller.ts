@@ -4,6 +4,7 @@ import User from '../../models/Users';
 import { OAuth2Client } from 'google-auth-library';
 import appleSignin from 'apple-signin-auth';
 import jwt from 'jsonwebtoken';
+import { AuthRequest } from '../../types/User';
 
 const GOOGLE_CLIENT_ID = '956480809434-gc2alto3oma2clc1u8svqp0q0ondu3mo.apps.googleusercontent.com';
 const APPLE_BUNDLE_ID = 'com.darbna.app';
@@ -101,7 +102,13 @@ const updateUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { name, country, bio, phone, profilePicture } = req.body;
+        const authReq = req as AuthRequest;
         console.log('req.body', req.body);
+
+        // Verify user is updating their own profile
+        if (authReq.user?._id?.toString() !== id) {
+            return res.status(403).json({ message: 'You can only update your own profile', success: false });
+        }
 
         const user = await User.findById(id);
 
@@ -133,10 +140,43 @@ const updateUser = async (req: Request, res: Response) => {
 const updatePassword = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { password } = req.body;
-        // Logic for updating password is missing in original file, keeping it minimal as it was, but adding success: false for error
-        // Actually, let's just make it return success: true if it did something, but it's empty.
-        // Assuming it's a placeholder, I'll just add success: false to the error block.
+        const { oldPassword, newPassword } = req.body;
+        const authReq = req as AuthRequest;
+
+        // Verify user is updating their own password
+        if (authReq.user?._id?.toString() !== id) {
+            return res.status(403).json({ message: 'You can only update your own password', success: false });
+        }
+
+        if (!newPassword) {
+            return res.status(400).json({ message: 'New password is required', success: false });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found', success: false });
+        }
+
+        // If user has a password, verify old password
+        if (user.password) {
+            if (!oldPassword) {
+                return res.status(400).json({ message: 'Old password is required', success: false });
+            }
+            const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+            if (!isPasswordValid) {
+                return res.status(400).json({ message: 'Invalid old password', success: false });
+            }
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update password
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).json({ message: 'Password updated successfully', success: true });
     } catch (error) {
         console.error('Update password error:', error);
         res.status(500).json({ message: 'Error updating password', success: false });
@@ -146,7 +186,17 @@ const updatePassword = async (req: Request, res: Response) => {
 const deleteUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const authReq = req as AuthRequest;
+
+        // Verify user is deleting their own account
+        if (authReq.user?._id?.toString() !== id) {
+            return res.status(403).json({ message: 'You can only delete your own account', success: false });
+        }
+
         const user = await User.findByIdAndDelete(id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found', success: false });
+        }
         res.status(200).json({ success: true, data: user });
     } catch (error) {
         console.error('Delete user error:', error);
@@ -184,7 +234,12 @@ const getUserByUsername = async (req: Request, res: Response) => {
 const followUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
+        const authReq = req as AuthRequest;
+        const userId = authReq.user?._id?.toString();
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized', success: false });
+        }
 
         if (id === userId) {
             return res.status(400).json({ message: 'You cannot follow yourself', success: false });
@@ -212,7 +267,12 @@ const followUser = async (req: Request, res: Response) => {
 const unfollowUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
+        const authReq = req as AuthRequest;
+        const userId = authReq.user?._id?.toString();
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized', success: false });
+        }
 
         const targetUser = await User.findByIdAndUpdate(
             id,

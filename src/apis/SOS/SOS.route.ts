@@ -1,10 +1,14 @@
 import { Router } from "express";
 import { createSOSAlert, getActiveSOSAlerts, resolveSOSAlert } from "./SOS.controller";
+import { auth } from "../../middlewares/auth";
 
 const router = Router();
 
-router.post("/create", createSOSAlert);
+// Public endpoint - anyone can view active SOS alerts for safety reasons
 router.get("/active", getActiveSOSAlerts);
-router.post("/resolve", resolveSOSAlert);
+
+// Protected endpoints - require authentication
+router.post("/create", auth, createSOSAlert);
+router.post("/resolve", auth, resolveSOSAlert);
 
 export default router;

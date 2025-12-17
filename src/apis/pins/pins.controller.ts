@@ -2,14 +2,21 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Pin, { PIN_CATEGORIES } from "../../models/Pins";
 import User from "../../models/Users";
+import { AuthRequest } from "../../types/User";
 
 
 const createPin = async (req: Request, res: Response) => {
     try {
-        const { title, description, category, isPublic, userId, location, latitude, longitude } = req.body;
+        const authReq = req as AuthRequest;
+        const { title, description, category, isPublic, location, latitude, longitude } = req.body;
+        const userId = authReq.user?._id;
 
-        if (!title || !category || !userId) {
-            return res.status(400).json({ message: "Missing required fields: title, category, and userId are required" });
+        if (!title || !category) {
+            return res.status(400).json({ message: "Missing required fields: title and category are required" });
+        }
+
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
         }
 
         if (!PIN_CATEGORIES.includes(category)) {
@@ -17,11 +24,6 @@ const createPin = async (req: Request, res: Response) => {
                 message: "Invalid category",
                 validCategories: PIN_CATEGORIES
             });
-        }
-
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
         }
 
         let locationData;
@@ -121,6 +123,12 @@ const getPinById = async (req: Request, res: Response) => {
 const updatePin = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const authReq = req as AuthRequest;
+        const userId = authReq.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
 
         // Validate that id is a valid MongoDB ObjectId
         if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -129,7 +137,17 @@ const updatePin = async (req: Request, res: Response) => {
             });
         }
 
-        const { title, description, category, isPublic, userId, location, latitude, longitude, images } = req.body;
+        // Verify ownership
+        const existingPin = await Pin.findById(id);
+        if (!existingPin) {
+            return res.status(404).json({ message: "Pin not found" });
+        }
+
+        if (existingPin.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "You can only update your own pins" });
+        }
+
+        const { title, description, category, isPublic, location, latitude, longitude, images } = req.body;
 
         const updateData: any = {};
 
@@ -145,7 +163,6 @@ const updatePin = async (req: Request, res: Response) => {
             updateData.category = category;
         }
         if (isPublic !== undefined) updateData.isPublic = isPublic;
-        if (userId) updateData.userId = userId;
 
         // Handle multiple images (max 4)
         // If images array is provided in body, use it (allows clearing images with empty array)
@@ -202,6 +219,12 @@ const updatePin = async (req: Request, res: Response) => {
 const deletePin = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const authReq = req as AuthRequest;
+        const userId = authReq.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
 
         // Validate that id is a valid MongoDB ObjectId
         if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -210,7 +233,17 @@ const deletePin = async (req: Request, res: Response) => {
             });
         }
 
-        const pin = await Pin.findByIdAndDelete(id);
+        // Verify ownership
+        const pin = await Pin.findById(id);
+        if (!pin) {
+            return res.status(404).json({ message: "Pin not found" });
+        }
+
+        if (pin.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "You can only delete your own pins" });
+        }
+
+        await Pin.findByIdAndDelete(id);
 
         if (!pin) {
             return res.status(404).json({ message: "Pin not found" });

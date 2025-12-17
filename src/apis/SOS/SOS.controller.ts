@@ -2,16 +2,17 @@
 import { Request, Response } from "express";
 import SOSAlert from "../../models/SOSAlert";
 import { sendSosAlertToAllUsers } from "../../pushNotifications"; // We will create this service later
+import { AuthRequest } from "../../types/User";
 
 /**
  * @desc    Create a new SOS alert
  * @route   POST /api/sos/create
  * @access  Private (requires authentication)
  */
-export const createSOSAlert = async (req: Request, res: Response) => {
+export const createSOSAlert = async (req: AuthRequest, res: Response) => {
   const { latitude, longitude } = req.body;
   // The `user` object is attached to the request by your authentication middleware
-  const userId = (req as any).user.id;
+  const userId = req.user?._id;
 
   try {
     if (typeof latitude !== "number" || typeof longitude !== "number") {
@@ -66,12 +67,12 @@ export const getActiveSOSAlerts = async (req: Request, res: Response) => {
 
 /**
  * @desc    Resolve an SOS alert
- * @route   PUT /api/sos/:alertId/resolve
+ * @route   POST /api/sos/resolve
  * @access  Private (requires authentication)
  */
-export const resolveSOSAlert = async (req: Request, res: Response) => {
-  const userId = (req as any).user.id;
-  const { alertId } = req.params;
+export const resolveSOSAlert = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { alertId } = req.body;
 
   try {
     const alert = await SOSAlert.findById(alertId);
@@ -81,7 +82,7 @@ export const resolveSOSAlert = async (req: Request, res: Response) => {
     }
 
     // Authorization check: Only the user who created the alert can resolve it
-    if (alert.user.toString() !== userId) {
+    if (alert.user.toString() !== userId?.toString()) {
       return res
         .status(403)
         .json({ message: "User not authorized to resolve this alert" });
