@@ -1,4 +1,3 @@
-// src/services/pushNotifications.ts
 import { Expo, ExpoPushMessage } from "expo-server-sdk";
 import User from "./models/Users";
 import SOSAlert from "./models/SOSAlert";
@@ -7,8 +6,11 @@ import { ISOSAlert } from "./models/SOSAlert";
 // Create a new Expo client. You should do this only once in your app.
 const expo = new Expo();
 
+// FIXED: Enhanced with better logging and error handling
 export const sendSosAlertToAllUsers = async (alert: ISOSAlert) => {
-  console.log("Preparing to send push notifications for new alert...");
+  console.log(
+    `[SOS NOTIFICATION] Starting push notification process for alert ${alert._id}`
+  );
 
   try {
     // 1. Find all users who have a push token, excluding the user who sent the alert.
@@ -19,10 +21,14 @@ export const sendSosAlertToAllUsers = async (alert: ISOSAlert) => {
 
     if (usersWithPushTokens.length === 0) {
       console.log(
-        "No users with push tokens found. Skipping push notifications."
+        "[SOS NOTIFICATION] No users with push tokens found. Skipping push notifications."
       );
       return;
     }
+
+    console.log(
+      `[SOS NOTIFICATION] Found ${usersWithPushTokens.length} users to notify.`
+    );
 
     // 2. Create the notification messages to send.
     const messages: ExpoPushMessage[] = [];
@@ -30,7 +36,7 @@ export const sendSosAlertToAllUsers = async (alert: ISOSAlert) => {
       // Ensure the token is a valid Expo push token.
       if (!Expo.isExpoPushToken(user.pushToken!)) {
         console.error(
-          `Push token ${user.pushToken} is not a valid Expo push token`
+          `[SOS NOTIFICATION] Invalid push token for user ${user._id}: ${user.pushToken}`
         );
         continue;
       }
@@ -39,30 +45,47 @@ export const sendSosAlertToAllUsers = async (alert: ISOSAlert) => {
         to: user.pushToken!,
         sound: "default", // Use a default notification sound
         title: "🚨 New SOS Alert",
-        body: `${(alert.user as any).username} has sent an emergency alert!`,
+        body: `${(alert.user as any).username} needs help!`,
         data: { alertId: alert._id.toString() }, // Pass the alert ID to the app
         badge: 1, // Set the app icon badge number
       });
     }
 
+    console.log(
+      `[SOS NOTIFICATION] Created ${messages.length} notification messages.`
+    );
+
     // 3. The Expo push notification service has a limit of 100 messages per request.
     // We chunk the messages into arrays of 100 to send them in batches.
     const chunks = expo.chunkPushNotifications(messages);
     console.log(
-      `Sending ${messages.length} notifications in ${chunks.length} chunk(s).`
+      `[SOS NOTIFICATION] Sending ${messages.length} notifications in ${chunks.length} chunk(s).`
     );
 
     for (const chunk of chunks) {
       try {
         const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-        console.log("Push notification tickets received:", ticketChunk);
+        console.log(
+          "[SOS NOTIFICATION] Push notification tickets received:",
+          ticketChunk
+        );
         // You can save these tickets to a database to check for errors later.
       } catch (error) {
-        console.error("Error sending push notification chunk:", error);
+        console.error(
+          "[SOS NOTIFICATION] Error sending push notification chunk:",
+          error
+        );
       }
     }
+
+    console.log(
+      `[SOS NOTIFICATION] Successfully sent SOS notifications for alert ${alert._id}`
+    );
   } catch (error) {
-    console.error("Error in sendSosAlertToAllUsers service:", error);
+    console.error(
+      "[SOS NOTIFICATION] Error in sendSosAlertToAllUsers service:",
+      error
+    );
   }
 };
 
@@ -70,19 +93,21 @@ export const sendHelpOfferNotification = async (
   user: any,
   helperUsername: string
 ) => {
-  console.log("Preparing to send help offer notification...");
+  console.log(
+    "[HELP NOTIFICATION] Preparing to send help offer notification..."
+  );
 
   try {
     if (!user.pushToken) {
-      console.log("User has no push token. Skipping notification.");
+      console.log(
+        "[HELP NOTIFICATION] User has no push token. Skipping notification."
+      );
       return;
     }
 
     // Ensure the token is a valid Expo push token.
     if (!Expo.isExpoPushToken(user.pushToken)) {
-      console.error(
-        `Push token ${user.pushToken} is not a valid Expo push token`
-      );
+      console.error(`[HELP NOTIFICATION] Invalid push token ${user.pushToken}`);
       return;
     }
 
@@ -95,26 +120,36 @@ export const sendHelpOfferNotification = async (
     };
 
     const ticket = await expo.sendPushNotificationsAsync([message]);
-    console.log("Help offer notification ticket received:", ticket);
+    console.log(
+      "[HELP NOTIFICATION] Help offer notification ticket received:",
+      ticket
+    );
   } catch (error) {
-    console.error("Error in sendHelpOfferNotification service:", error);
+    console.error(
+      "[HELP NOTIFICATION] Error in sendHelpOfferNotification service:",
+      error
+    );
   }
 };
 
 // ✨ NEW: Send notification when an SOS alert expires after 2 hours
 export const sendAlertExpiredNotification = async (sosSender: any) => {
-  console.log("Preparing to send alert expired notification...");
+  console.log(
+    "[EXPIRY NOTIFICATION] Preparing to send alert expired notification..."
+  );
 
   try {
     if (!sosSender.pushToken) {
-      console.log("User has no push token. Skipping notification.");
+      console.log(
+        "[EXPIRY NOTIFICATION] User has no push token. Skipping notification."
+      );
       return;
     }
 
     // Ensure the token is a valid Expo push token.
     if (!Expo.isExpoPushToken(sosSender.pushToken)) {
       console.error(
-        `Push token ${sosSender.pushToken} is not a valid Expo push token`
+        `[EXPIRY NOTIFICATION] Invalid push token ${sosSender.pushToken}`
       );
       return;
     }
@@ -128,8 +163,14 @@ export const sendAlertExpiredNotification = async (sosSender: any) => {
     };
 
     const ticket = await expo.sendPushNotificationsAsync([message]);
-    console.log("Alert expired notification ticket received:", ticket);
+    console.log(
+      "[EXPIRY NOTIFICATION] Alert expired notification ticket received:",
+      ticket
+    );
   } catch (error) {
-    console.error("Error in sendAlertExpiredNotification service:", error);
+    console.error(
+      "[EXPIRY NOTIFICATION] Error in sendAlertExpiredNotification service:",
+      error
+    );
   }
 };

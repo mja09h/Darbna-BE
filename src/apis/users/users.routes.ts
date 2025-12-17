@@ -14,7 +14,6 @@ import {
     getUserProfile,
     updatePassword,
     login,
-    googleLogin,
     appleLogin,
 } from './users.controller';
 import { auth } from '../../middlewares/auth';
@@ -28,7 +27,6 @@ router.get('/username/:username', getUserByUsername);
 router.get('/:id', getUserById);
 router.get('/:id/profile', getUserProfile);
 
-router.post('/google', googleLogin);
 router.post('/apple', appleLogin);
 
 // Protected endpoints - require authentication
