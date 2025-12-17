@@ -1,4 +1,3 @@
-// src/apis/sosAlertController.ts
 import { Request, Response } from "express";
 import SOSAlert from "../../models/SOSAlert";
 import User, { IUser } from "../../models/Users";
@@ -59,9 +58,12 @@ export const createSOSAlert = async (req: Request, res: Response) => {
   }
 };
 
-// GET ACTIVE ALERTS (WITH DISTANCE)
+// GET ACTIVE ALERTS (WITH DISTANCE) - FIXED: Filter out user's own alerts and sort by newest first
 export const getActiveSOSAlerts = async (req: Request, res: Response) => {
   const { latitude, longitude } = req.query;
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?._id;
+
   if (!latitude || !longitude)
     return res.status(400).json({ message: "Current location is required" });
 
@@ -75,10 +77,15 @@ export const getActiveSOSAlerts = async (req: Request, res: Response) => {
           near: { type: "Point", coordinates: [userLng, userLat] },
           distanceField: "distance",
           spherical: true,
-          query: { status: "ACTIVE" },
+          query: {
+            status: "ACTIVE",
+            // FIXED: Exclude user's own alerts
+            user: { $ne: userId ? new mongoose.Types.ObjectId(userId) : null },
+          },
         },
       },
-      { $sort: { distance: 1 } },
+      // FIXED: Sort by newest first (createdAt descending), then by distance
+      { $sort: { createdAt: -1, distance: 1 } },
       { $limit: 50 },
       {
         $lookup: {
@@ -104,7 +111,9 @@ export const getActiveSOSAlerts = async (req: Request, res: Response) => {
     res.status(200).json(alerts);
   } catch (error) {
     console.error("Error fetching active alerts:", error);
-    res.status(500).json({ message: "Server error while fetching active alerts" });
+    res
+      .status(500)
+      .json({ message: "Server error while fetching active alerts" });
   }
 };
 
@@ -212,7 +221,13 @@ export const resolveSOSAlert = async (req: Request, res: Response) => {
     }
 
     // Authorization check: Only the user who created the alert can resolve it
-    if (alert.user.toString() !== userId.toString()) {
+    // Convert both to strings for reliable comparison
+    const alertUserId =
+      alert.user instanceof mongoose.Types.ObjectId
+        ? alert.user.toString()
+        : (alert.user as any)._id?.toString() || alert.user.toString();
+
+    if (alertUserId !== userId.toString()) {
       return res
         .status(403)
         .json({ message: "User not authorized to resolve this alert" });
