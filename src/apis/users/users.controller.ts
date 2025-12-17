@@ -26,13 +26,28 @@ const getUsers = async (req: Request, res: Response) => {
 
 const register = async (req: Request, res: Response) => {
     try {
-        const { name, country, username, email, password } = req.body;
+        const { name, username, email, password, phone } = req.body;
 
-        if (!name || !username || !email || !password || !country) {
+        if ( !name || !username || !email || !password || !phone ) {
             return res
                 .status(400)
-                .json({ message: "Missing required fields", success: false });
+                .json({ message: "Missing required fields: name, username, email, and password are required", success: false });
         }
+
+        if (phone) {
+                if (phone.length !== 10) {
+                    return res
+                        .status(400)
+                        .json({ message: "Phone number must be 10 digits", success: false });
+                }
+                
+                if (!/^\d+$/.test(phone)) {
+                    return res
+                        .status(400)
+                        .json({ message: "Phone number must contain only digits", success: false });
+                }
+        }
+
         const existingUser = await User.findOne({ $or: [{ email }, { username }] });
         if (existingUser) {
             return res.status(400).json({
@@ -47,7 +62,7 @@ const register = async (req: Request, res: Response) => {
             email,
             password: password, // Pass plain password, pre-save hook will hash it
             name,
-            country,
+            phone,
         });
 
         const token = jwt.sign(

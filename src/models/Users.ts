@@ -50,7 +50,7 @@ const UserSchema = new Schema<IUser>(
     },
     phone: {
       type: String,
-      default: "",
+      required: true,
     },
     country: {
       type: String,
