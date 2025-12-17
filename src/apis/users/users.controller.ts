@@ -17,20 +17,61 @@ const getUsers = async (req: Request, res: Response) => {
 };
 
 const register = async (req: Request, res: Response) => {
-  try {
-    const { name, country, username, email, password } = req.body;
+    try {
+        const { name, username, email, password, phone } = req.body;
 
-    if (!name || !username || !email || !password || !country) {
-      return res
-        .status(400)
-        .json({ message: "Missing required fields", success: false });
-    }
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
-      return res.status(400).json({
-        message: "User with this email or username already exists",
-        success: false,
-      });
+        if (!name || !username || !email || !password || !phone) {
+            return res
+                .status(400)
+                .json({ message: "Missing required fields: name, username, email, and password are required", success: false });
+        }
+
+            if (!/^\d+$/.test(phone)) {
+                return res
+                    .status(400)
+                    .json({ message: "Phone number must contain only digits", success: false });
+            }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedUsername = username.trim();
+
+        const existingEmail = await User.findOne({ email: normalizedEmail });
+        if (existingEmail) {
+            return res.status(400).json({
+                message: "User with this email already exists",
+                success: false,
+            });
+        }
+
+        const existingUsername = await User.findOne({ username: normalizedUsername });
+        if (existingUsername) {
+            return res.status(400).json({
+                message: "User with this username already exists",
+                success: false,
+            });
+        }
+
+        // Let the User model's pre-save hook handle password hashing
+        const user = await User.create({
+            username: normalizedUsername,
+            email: normalizedEmail,
+            password: password, // Pass plain password, pre-save hook will hash it
+            name,
+            phone,
+        });
+
+        const token = jwt.sign(
+            { _id: user._id, username: user.username, email: user.email },
+            process.env.JWT_SECRET as string,
+            { expiresIn: "30d" }
+        );
+
+        const userResponse = user.toObject();
+        delete (userResponse as any).password;
+
+        res.status(201).json({ success: true, token, user: userResponse });
+    } catch (error) {
+        res.status(500).json({ message: "Error creating user", success: false });
     }
 
     // Let the User model's pre-save hook handle password hashing
