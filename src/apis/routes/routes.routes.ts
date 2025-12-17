@@ -11,12 +11,13 @@ import {
   uploadRouteImages,
   uploadRouteScreenshot,
   getPublicRoutes,
+  getRouteDirections,
 } from "./routes.controller";
 
 const router = Router();
 
-// All routes require authentication
-// router.use(auth);
+// Apply authentication middleware to all routes that require user context
+router.use(auth);
 
 // Create a new route
 router.post("/", createRoute);
@@ -29,6 +30,9 @@ router.get("/public", getPublicRoutes);
 
 // Get routes near a specific location
 router.get("/nearby", getRoutesNearLocation);
+
+// Get directions to a route
+router.get("/:routeId/directions", getRouteDirections);
 
 // Upload screenshot for a route
 router.post(

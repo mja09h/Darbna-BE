@@ -111,12 +111,27 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
 export const getUserRoutes = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?._id;
-    const routes = await Route.find({ userId, isPublic: false }).sort({
+
+    // Validate user is authenticated
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Fetch only private routes for this user
+    const routes = await Route.find({
+      userId,
+      isPublic: false,
+    }).sort({
       createdAt: -1,
     });
+
     res.status(200).json(routes);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching routes", error });
+  } catch (error: any) {
+    console.error("Error fetching user routes:", error);
+    res.status(500).json({
+      message: "Error fetching routes",
+      error: error.message,
+    });
   }
 };
 
@@ -178,22 +193,45 @@ export const updateRoute = async (req: AuthRequest, res: Response) => {
 export const deleteRoute = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.user?._id;
+
+    // Validate route ID format
+    if (!id || id.length !== 24) {
+      return res.status(400).json({ message: "Invalid route ID" });
+    }
+
+    // Validate user is authenticated
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Find the route
     const route = await Route.findById(id);
 
     if (!route) {
       return res.status(404).json({ message: "Route not found" });
     }
 
-    // Verify user ownership
-    if (route.userId.toString() !== req.user?._id?.toString()) {
-      return res.status(403).json({ message: "Unauthorized" });
+    // Verify user ownership - CRITICAL SECURITY CHECK
+    if (route.userId.toString() !== userId.toString()) {
+      return res.status(403).json({
+        message: "Unauthorized: You can only delete your own routes",
+      });
     }
 
+    // Delete the route
     await Route.findByIdAndDelete(id);
 
-    res.status(200).json({ message: "Route deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Error deleting route", error });
+    res.status(200).json({
+      message: "Route deleted successfully",
+      deletedRouteId: id,
+    });
+  } catch (error: any) {
+    console.error("Error deleting route:", error);
+    res.status(500).json({
+      message: "Error deleting route",
+      error: error.message,
+    });
   }
 };
 
@@ -339,10 +377,14 @@ export const uploadRouteScreenshot = async (
 export const getPublicRoutes = async (req: AuthRequest, res: Response) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    const pageNum = parseInt(page as string) || 1;
-    const limitNum = parseInt(limit as string) || 10;
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(
+      100,
+      Math.max(1, parseInt(limit as string) || 10)
+    );
     const skip = (pageNum - 1) * limitNum;
 
+    // Only fetch public routes
     const routes = await Route.find({ isPublic: true })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -350,6 +392,14 @@ export const getPublicRoutes = async (req: AuthRequest, res: Response) => {
       .populate("userId", "name profilePicture"); // Populate user info
 
     const total = await Route.countDocuments({ isPublic: true });
+    const pages = Math.ceil(total / limitNum);
+
+    // Validate page number
+    if (pageNum > pages && total > 0) {
+      return res.status(400).json({
+        message: `Page ${pageNum} does not exist. Total pages: ${pages}`,
+      });
+    }
 
     res.status(200).json({
       routes,
@@ -357,10 +407,109 @@ export const getPublicRoutes = async (req: AuthRequest, res: Response) => {
         total,
         page: pageNum,
         limit: limitNum,
-        pages: Math.ceil(total / limitNum),
+        pages: pages,
       },
     });
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching public routes", error });
+  } catch (error: any) {
+    console.error("Error fetching public routes:", error);
+    res.status(500).json({
+      message: "Error fetching public routes",
+      error: error.message,
+    });
   }
 };
+
+// Get directions to a route's starting point
+export const getRouteDirections = async (req: AuthRequest, res: Response) => {
+  try {
+    const { routeId } = req.params;
+    const { userLat, userLng } = req.query;
+
+    // Validate parameters
+    if (!routeId || routeId.length !== 24) {
+      return res.status(400).json({ message: "Invalid route ID" });
+    }
+
+    if (!userLat || !userLng) {
+      return res.status(400).json({
+        message: "User location (userLat, userLng) is required",
+      });
+    }
+
+    // Find the route
+    const route = await Route.findById(routeId);
+    if (!route) {
+      return res.status(404).json({ message: "Route not found" });
+    }
+
+    // Validate route has coordinates
+    if (!route.path.coordinates || route.path.coordinates.length === 0) {
+      return res.status(400).json({
+        message: "Route has no coordinates",
+      });
+    }
+
+    // Get the first point of the route as destination
+    const [destLng, destLat] = route.path.coordinates[0];
+
+    // Get the last point as well
+    const [endLng, endLat] =
+      route.path.coordinates[route.path.coordinates.length - 1];
+
+    // Calculate simple distance using Haversine formula
+    const distance = calculateHaversineDistance(
+      parseFloat(userLat as string),
+      parseFloat(userLng as string),
+      destLat,
+      destLng
+    );
+
+    // Return directions data
+    res.status(200).json({
+      route: {
+        _id: route._id,
+        name: route.name,
+        description: route.description,
+        distance: route.distance,
+        duration: route.duration,
+      },
+      startPoint: {
+        latitude: destLat,
+        longitude: destLng,
+      },
+      endPoint: {
+        latitude: endLat,
+        longitude: endLng,
+      },
+      distanceFromUser: distance,
+      googleMapsUrl: `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${destLat},${destLng}&travelmode=walking`,
+      appleMapsUrl: `https://maps.apple.com/?saddr=${userLat},${userLng}&daddr=${destLat},${destLng}`,
+    });
+  } catch (error: any) {
+    console.error("Error getting directions:", error);
+    res.status(500).json({
+      message: "Error getting directions",
+      error: error.message,
+    });
+  }
+};
+
+// Helper function to calculate distance between two points (Haversine formula)
+function calculateHaversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+}
