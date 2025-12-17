@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 
 // Define the interface for the User document
 export interface IUser extends Document {
+  _id: Types.ObjectId;
   name: string;
   username: string;
   email: string;

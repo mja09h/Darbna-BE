@@ -11,10 +11,10 @@ import { errorHandler } from "./middlewares/errorHandler";
 import { notFound } from "./middlewares/notFound";
 import usersRoutes from "./apis/users/users.routes";
 import authRoutes from "./apis/auth/auth.routes";
-import sosRoutes from "./apis/SOS/SOS.route";
 import path from "path";
 import routesRoutes from "./apis/routes/routes.routes";
 import pinsRoutes from "./apis/pins/pins.route";
+import sosRoutes from "./apis/SOS/SOS.route";
 import { startAlertExpirationJob } from "./jobs/alertExpiration";
 
 // Load environment variables FIRST
