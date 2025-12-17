@@ -16,7 +16,7 @@ import {
 const router = Router();
 
 // All routes require authentication
-router.use(auth);
+// router.use(auth);
 
 // Create a new route
 router.post("/", createRoute);
