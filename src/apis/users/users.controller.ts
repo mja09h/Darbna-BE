@@ -12,7 +12,7 @@ const GOOGLE_CLIENT_IDS = [
     "786920296014-i0kmog68ov1fia1ro2ri0qs94dmm30l8.apps.googleusercontent.com", // Android
     "786920296014-a33qijp2m85ka1p3qjp0vglsdechd7mq.apps.googleusercontent.com", // iOS
 ];
-const APPLE_BUNDLE_ID = "com.darbna.app";
+const APPLE_BUNDLE_ID = "com.darbna.app.v";
 const googleClient = new OAuth2Client();
 
 const getUsers = async (req: Request, res: Response) => {
