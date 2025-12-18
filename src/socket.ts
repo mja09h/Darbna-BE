@@ -30,29 +30,6 @@ interface SocketWithAuth extends Socket {
 }
 
 export const setupSocket = (io: Server) => {
-  // ✨ TEMPORARILY DISABLED: Authentication middleware - verify JWT token on connection
-  // io.use((socket: SocketWithAuth, next) => {
-  //   const token = socket.handshake.auth.token;
-
-  //   // Check if token exists
-  //   if (!token) {
-  //     return next(new Error("Authentication error: No token provided"));
-  //   }
-
-  //   try {
-  //     // Verify JWT token and extract userId
-  //     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
-  //       userId: string;
-  //     };
-
-  //     // Attach userId to socket for later use
-  //     socket.userId = decoded.userId;
-  //     next();
-  //   } catch (err) {
-  //     return next(new Error("Invalid token: Authentication failed"));
-  //   }
-  // });
-
   // TEMPORARY: Allow all connections without authentication
   io.use((socket: SocketWithAuth, next) => {
     // Set a dummy userId for testing (you can use a test user ID)
@@ -71,6 +48,11 @@ export const setupSocket = (io: Server) => {
     } else {
       console.warn("⚠ Socket connected without userId");
     }
+
+    // Add error handler for socket errors
+    socket.on("error", (error) => {
+      console.error("Socket.IO Error:", error);
+    });
 
     socket.on("update-location", async (data) => {
       const { userId, longitude, latitude } = data;
@@ -122,5 +104,10 @@ export const setupSocket = (io: Server) => {
         `✓ User ${socket.userId} with socket id ${socket.id} disconnected`
       );
     });
+  });
+
+  // Handle connection errors at the server level
+  io.engine.on("connection_error", (err) => {
+    console.error("Socket.IO Connection Error:", err);
   });
 };
