@@ -62,8 +62,21 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    if (typeof isPublic !== "boolean") {
-      console.log("isPublic must be a boolean");
+    // Convert isPublic to boolean - default to false (private) if not provided
+    let isPublicBool: boolean;
+    if (typeof isPublic === "string") {
+      isPublicBool = isPublic.toLowerCase() === "true";
+    } else if (typeof isPublic === "boolean") {
+      isPublicBool = isPublic;
+    } else if (isPublic === undefined || isPublic === null) {
+      // Default to false (private) if not provided
+      isPublicBool = false;
+    } else {
+      console.log(
+        "isPublic must be a boolean or string 'true'/'false', received:",
+        typeof isPublic,
+        isPublic
+      );
       return res.status(400).json({ message: "isPublic must be a boolean" });
     }
 
@@ -75,28 +88,34 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "Invalid route type" });
     }
 
-    if (!description || description.trim().length === 0) {
-      console.log("Description is required");
-      return res.status(400).json({ message: "Description is required" });
-    }
+    // Description is optional, but if provided, validate it
+    if (description !== undefined && description !== null) {
+      const descStr = String(description);
+      if (descStr.trim().length === 0) {
+        console.log("Description cannot be empty if provided");
+        return res
+          .status(400)
+          .json({ message: "Description cannot be empty if provided" });
+      }
 
-    if (description.length > 250) {
-      console.log("Description must not exceed 250 characters");
-      return res
-        .status(400)
-        .json({ message: "Description must not exceed 250 characters" });
+      if (descStr.length > 250) {
+        console.log("Description must not exceed 250 characters");
+        return res
+          .status(400)
+          .json({ message: "Description must not exceed 250 characters" });
+      }
     }
 
     const newRoute = await Route.create({
       userId,
       name,
-      description,
+      description: description || undefined, // Only include if provided
       path,
       startTime,
       points,
       distance,
       duration,
-      isPublic,
+      isPublic: isPublicBool,
       routeType,
     });
 
