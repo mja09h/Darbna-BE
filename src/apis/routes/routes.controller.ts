@@ -4,6 +4,10 @@ import { AuthRequest } from "../../types/User";
 
 export const createRoute = async (req: AuthRequest, res: Response) => {
   try {
+    console.log("=== CREATE ROUTE REQUEST ===");
+    console.log("Full req.body:", JSON.stringify(req.body, null, 2));
+    console.log("User ID:", req.user?._id);
+
     const {
       name,
       description,
@@ -15,52 +19,155 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       isPublic,
       routeType,
     } = req.body;
+
     const userId = req.user?._id;
-    console.log("req.body", req.body.isPublic);
-    //Validation
-    if (
-      !name ||
-      !path ||
-      !startTime ||
-      !points ||
-      typeof distance !== "number" ||
-      typeof duration !== "number"
-    ) {
-      console.log("Missing or invalid required fields");
-      return res
-        .status(400)
-        .json({ message: "Missing or invalid required fields" });
+
+    // Detailed logging for each field
+    console.log("\n=== FIELD VALIDATION ===");
+    console.log("name:", name, "| type:", typeof name, "| exists:", !!name);
+    console.log("path:", path, "| type:", typeof path, "| exists:", !!path);
+    console.log(
+      "startTime:",
+      startTime,
+      "| type:",
+      typeof startTime,
+      "| exists:",
+      !!startTime
+    );
+    console.log(
+      "points:",
+      points,
+      "| type:",
+      typeof points,
+      "| isArray:",
+      Array.isArray(points),
+      "| length:",
+      points?.length
+    );
+    console.log(
+      "distance:",
+      distance,
+      "| type:",
+      typeof distance,
+      "| isNumber:",
+      typeof distance === "number"
+    );
+    console.log(
+      "duration:",
+      duration,
+      "| type:",
+      typeof duration,
+      "| isNumber:",
+      typeof duration === "number"
+    );
+    console.log("isPublic:", isPublic, "| type:", typeof isPublic);
+    console.log("routeType:", routeType, "| type:", typeof routeType);
+
+    // Validation with detailed error messages
+    console.log("\n=== VALIDATION CHECKS ===");
+
+    if (!name) {
+      console.log("❌ FAILED: name is missing or falsy");
+      return res.status(400).json({
+        message: "Missing or invalid required fields",
+        detail: "name is required",
+      });
     }
+    console.log("✓ name validation passed");
+
+    if (!path) {
+      console.log("❌ FAILED: path is missing or falsy");
+      return res.status(400).json({
+        message: "Missing or invalid required fields",
+        detail: "path is required",
+      });
+    }
+    console.log("✓ path validation passed");
+
+    if (!startTime) {
+      console.log("❌ FAILED: startTime is missing or falsy");
+      return res.status(400).json({
+        message: "Missing or invalid required fields",
+        detail: "startTime is required",
+      });
+    }
+    console.log("✓ startTime validation passed");
+
+    if (!points) {
+      console.log("❌ FAILED: points is missing or falsy");
+      return res.status(400).json({
+        message: "Missing or invalid required fields",
+        detail: "points is required",
+      });
+    }
+    console.log("✓ points validation passed");
+
+    if (typeof distance !== "number") {
+      console.log(
+        "❌ FAILED: distance is not a number, received:",
+        typeof distance
+      );
+      return res.status(400).json({
+        message: "Missing or invalid required fields",
+        detail: `distance must be a number, received ${typeof distance}`,
+      });
+    }
+    console.log("✓ distance validation passed");
+
+    if (typeof duration !== "number") {
+      console.log(
+        "❌ FAILED: duration is not a number, received:",
+        typeof duration
+      );
+      return res.status(400).json({
+        message: "Missing or invalid required fields",
+        detail: `duration must be a number, received ${typeof duration}`,
+      });
+    }
+    console.log("✓ duration validation passed");
 
     // Validate path structure
     if (!path.coordinates || !Array.isArray(path.coordinates)) {
-      return res
-        .status(400)
-        .json({ message: "Path coordinates must be an array" });
+      console.log("❌ FAILED: path.coordinates is not an array");
+      return res.status(400).json({
+        message: "Path coordinates must be an array",
+      });
     }
+    console.log("✓ path.coordinates is array");
 
     // Validate that LineString has at least 2 coordinates
     if (path.coordinates.length < 2) {
+      console.log(
+        "❌ FAILED: path.coordinates has less than 2 points, length:",
+        path.coordinates.length
+      );
       return res.status(400).json({
         message:
           "GeoJSON LineString must have at least 2 coordinates (vertices)",
       });
     }
+    console.log("✓ path.coordinates has at least 2 points");
 
     // Validate each coordinate is a valid [longitude, latitude] pair
-    for (const coord of path.coordinates) {
+    for (let i = 0; i < path.coordinates.length; i++) {
+      const coord = path.coordinates[i];
       if (
         !Array.isArray(coord) ||
         coord.length !== 2 ||
         typeof coord[0] !== "number" ||
         typeof coord[1] !== "number"
       ) {
+        console.log("❌ FAILED: coordinate at index", i, "is invalid:", coord);
         return res.status(400).json({
           message:
             "Each coordinate must be an array of two numbers [longitude, latitude]",
+          detail: `Coordinate at index ${i} is invalid: ${JSON.stringify(
+            coord
+          )}`,
         });
       }
     }
+    console.log("✓ all coordinates are valid");
 
     // Convert isPublic to boolean - default to false (private) if not provided
     let isPublicBool: boolean;
@@ -69,47 +176,61 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
     } else if (typeof isPublic === "boolean") {
       isPublicBool = isPublic;
     } else if (isPublic === undefined || isPublic === null) {
-      // Default to false (private) if not provided
       isPublicBool = false;
     } else {
       console.log(
-        "isPublic must be a boolean or string 'true'/'false', received:",
+        "❌ FAILED: isPublic must be a boolean or string 'true'/'false', received:",
         typeof isPublic,
         isPublic
       );
       return res.status(400).json({ message: "isPublic must be a boolean" });
     }
+    console.log("✓ isPublic validation passed, converted to:", isPublicBool);
 
     if (
       !routeType ||
       !["Running", "Cycling", "Walking", "Hiking", "Other"].includes(routeType)
     ) {
-      console.log("Invalid route type");
-      return res.status(400).json({ message: "Invalid route type" });
+      console.log(
+        "❌ FAILED: Invalid route type:",
+        routeType,
+        "| valid types: Running, Cycling, Walking, Hiking, Other"
+      );
+      return res.status(400).json({
+        message: "Invalid route type",
+        detail: `routeType must be one of: Running, Cycling, Walking, Hiking, Other. Received: ${routeType}`,
+      });
     }
+    console.log("✓ routeType validation passed");
 
     // Description is optional, but if provided, validate it
     if (description !== undefined && description !== null) {
       const descStr = String(description);
       if (descStr.trim().length === 0) {
-        console.log("Description cannot be empty if provided");
-        return res
-          .status(400)
-          .json({ message: "Description cannot be empty if provided" });
+        console.log("❌ FAILED: Description cannot be empty if provided");
+        return res.status(400).json({
+          message: "Description cannot be empty if provided",
+        });
       }
 
       if (descStr.length > 250) {
-        console.log("Description must not exceed 250 characters");
-        return res
-          .status(400)
-          .json({ message: "Description must not exceed 250 characters" });
+        console.log(
+          "❌ FAILED: Description must not exceed 250 characters, length:",
+          descStr.length
+        );
+        return res.status(400).json({
+          message: "Description must not exceed 250 characters",
+        });
       }
     }
+    console.log("✓ description validation passed");
+
+    console.log("\n=== ALL VALIDATIONS PASSED, CREATING ROUTE ===");
 
     const newRoute = await Route.create({
       userId,
       name,
-      description: description || undefined, // Only include if provided
+      description: description || undefined,
       path,
       startTime,
       points,
@@ -119,10 +240,15 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       routeType,
     });
 
+    console.log("✓ Route created successfully, ID:", newRoute._id);
     res.status(201).json(newRoute);
   } catch (error) {
-    console.log("Error creating route", error);
-    return res.status(500).json({ message: "Error creating route", error });
+    console.log("❌ ERROR CREATING ROUTE:", error);
+    console.log("Error details:", JSON.stringify(error, null, 2));
+    return res.status(500).json({
+      message: "Error creating route",
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 };
 
@@ -131,12 +257,10 @@ export const getUserRoutes = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?._id;
 
-    // Validate user is authenticated
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
-    // Fetch only private routes for this user
     const routes = await Route.find({
       userId,
       isPublic: false,
@@ -183,7 +307,6 @@ export const updateRoute = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: "Route not found" });
     }
 
-    // Verify user ownership
     if (route.userId.toString() !== req.user?._id?.toString()) {
       return res.status(403).json({ message: "Unauthorized" });
     }
@@ -214,31 +337,26 @@ export const deleteRoute = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userId = req.user?._id;
 
-    // Validate route ID format
     if (!id || id.length !== 24) {
       return res.status(400).json({ message: "Invalid route ID" });
     }
 
-    // Validate user is authenticated
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
-    // Find the route
     const route = await Route.findById(id);
 
     if (!route) {
       return res.status(404).json({ message: "Route not found" });
     }
 
-    // Verify user ownership - CRITICAL SECURITY CHECK
     if (route.userId.toString() !== userId.toString()) {
       return res.status(403).json({
         message: "Unauthorized: You can only delete your own routes",
       });
     }
 
-    // Delete the route
     await Route.findByIdAndDelete(id);
 
     res.status(200).json({
@@ -293,29 +411,24 @@ export const uploadRouteImages = async (req: AuthRequest, res: Response) => {
     const { routeId } = req.params;
     const userId = req.user?._id;
 
-    // Find the route
     const route = await Route.findById(routeId);
     if (!route) {
       return res.status(404).json({ message: "Route not found" });
     }
 
-    // Verify ownership
     if (route.userId.toString() !== userId?.toString()) {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
-    // Check current image count (including screenshot)
     const currentImageCount =
       (route.images?.length || 0) + (route.screenshot ? 1 : 0);
 
-    // Files are uploaded via multer middleware
     const uploadedFiles = req.files as Express.Multer.File[];
 
     if (!uploadedFiles || uploadedFiles.length === 0) {
       return res.status(400).json({ message: "No files uploaded" });
     }
 
-    // Check total doesn't exceed 4 (including screenshot)
     if (currentImageCount + uploadedFiles.length > 4) {
       return res.status(400).json({
         message: `Can only upload ${
@@ -324,13 +437,11 @@ export const uploadRouteImages = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Process uploaded files and get URLs
     const imageUrls = uploadedFiles.map((file) => ({
       url: `/uploads/${file.filename}`,
       uploadedAt: new Date(),
     }));
 
-    // Update route with new images
     const updatedRoute = await Route.findByIdAndUpdate(
       routeId,
       {
@@ -354,34 +465,30 @@ export const uploadRouteScreenshot = async (
     const { routeId } = req.params;
     const userId = req.user?._id;
 
-    // Find the route
     const route = await Route.findById(routeId);
     if (!route) {
       return res.status(404).json({ message: "Route not found" });
     }
 
-    // Verify ownership
     if (route.userId.toString() !== userId?.toString()) {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
-    // Get uploaded file
-    const file = req.file as Express.Multer.File;
-    if (!file) {
-      return res.status(400).json({ message: "No screenshot provided" });
+    const uploadedFile = req.file as Express.Multer.File;
+
+    if (!uploadedFile) {
+      return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Create screenshot object
-    const screenshotData = {
-      url: `/uploads/${file.filename}`,
-      uploadedAt: new Date(),
-    };
+    const screenshotUrl = `/uploads/${uploadedFile.filename}`;
 
-    // Update route with screenshot
     const updatedRoute = await Route.findByIdAndUpdate(
       routeId,
       {
-        screenshot: screenshotData,
+        screenshot: {
+          url: screenshotUrl,
+          uploadedAt: new Date(),
+        },
       },
       { new: true }
     );
@@ -392,143 +499,44 @@ export const uploadRouteScreenshot = async (
   }
 };
 
-// Get all public routes for community page
+// Get public routes for community page
 export const getPublicRoutes = async (req: AuthRequest, res: Response) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
-    const pageNum = Math.max(1, parseInt(page as string) || 1);
-    const limitNum = Math.min(
-      100,
-      Math.max(1, parseInt(limit as string) || 10)
-    );
-    const skip = (pageNum - 1) * limitNum;
-
-    // Only fetch public routes
-    const routes = await Route.find({ isPublic: true })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .populate("userId", "name profilePicture"); // Populate user info
-
-    const total = await Route.countDocuments({ isPublic: true });
-    const pages = Math.ceil(total / limitNum);
-
-    // Validate page number
-    if (pageNum > pages && total > 0) {
-      return res.status(400).json({
-        message: `Page ${pageNum} does not exist. Total pages: ${pages}`,
-      });
-    }
-
-    res.status(200).json({
-      routes,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: pages,
-      },
+    const routes = await Route.find({ isPublic: true }).sort({
+      createdAt: -1,
     });
-  } catch (error: any) {
-    console.error("Error fetching public routes:", error);
-    res.status(500).json({
-      message: "Error fetching public routes",
-      error: error.message,
-    });
+
+    res.status(200).json(routes);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching public routes", error });
   }
 };
 
-// Get directions to a route's starting point
+// Get directions to a route
 export const getRouteDirections = async (req: AuthRequest, res: Response) => {
   try {
     const { routeId } = req.params;
     const { userLat, userLng } = req.query;
 
-    // Validate parameters
-    if (!routeId || routeId.length !== 24) {
-      return res.status(400).json({ message: "Invalid route ID" });
-    }
-
-    if (!userLat || !userLng) {
+    if (!routeId || !userLat || !userLng) {
       return res.status(400).json({
-        message: "User location (userLat, userLng) is required",
+        message: "Missing required parameters: routeId, userLat, userLng",
       });
     }
 
-    // Find the route
     const route = await Route.findById(routeId);
     if (!route) {
       return res.status(404).json({ message: "Route not found" });
     }
 
-    // Validate route has coordinates
-    if (!route.path.coordinates || route.path.coordinates.length === 0) {
-      return res.status(400).json({
-        message: "Route has no coordinates",
-      });
-    }
-
-    // Get the first point of the route as destination
-    const [destLng, destLat] = route.path.coordinates[0];
-
-    // Get the last point as well
-    const [endLng, endLat] =
-      route.path.coordinates[route.path.coordinates.length - 1];
-
-    // Calculate simple distance using Haversine formula
-    const distance = calculateHaversineDistance(
-      parseFloat(userLat as string),
-      parseFloat(userLng as string),
-      destLat,
-      destLng
-    );
-
-    // Return directions data
     res.status(200).json({
-      route: {
-        _id: route._id,
-        name: route.name,
-        description: route.description,
-        distance: route.distance,
-        duration: route.duration,
+      route,
+      userLocation: {
+        latitude: parseFloat(userLat as string),
+        longitude: parseFloat(userLng as string),
       },
-      startPoint: {
-        latitude: destLat,
-        longitude: destLng,
-      },
-      endPoint: {
-        latitude: endLat,
-        longitude: endLng,
-      },
-      distanceFromUser: distance,
-      googleMapsUrl: `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${destLat},${destLng}&travelmode=walking`,
-      appleMapsUrl: `https://maps.apple.com/?saddr=${userLat},${userLng}&daddr=${destLat},${destLng}`,
     });
-  } catch (error: any) {
-    console.error("Error getting directions:", error);
-    res.status(500).json({
-      message: "Error getting directions",
-      error: error.message,
-    });
+  } catch (error) {
+    res.status(500).json({ message: "Error getting directions", error });
   }
 };
-
-// Helper function to calculate distance between two points (Haversine formula)
-function calculateHaversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in km
-}
