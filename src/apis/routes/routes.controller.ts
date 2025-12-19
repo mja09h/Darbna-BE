@@ -252,7 +252,7 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Get all routes for a user (private routes only)
+// Get all routes for a user (UPDATED: now returns both private and public)
 export const getUserRoutes = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?._id;
@@ -261,9 +261,9 @@ export const getUserRoutes = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
+    // Return ALL user routes (both private and public)
     const routes = await Route.find({
       userId,
-      isPublic: false,
     }).sort({
       createdAt: -1,
     });
@@ -294,12 +294,21 @@ export const getRouteById = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Update a route with new points
+// Update a route (UPDATED: supports all editable fields)
 export const updateRoute = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, path, endTime, distance, duration, points } =
-      req.body;
+    const {
+      name,
+      description,
+      isPublic,
+      routeType,
+      difficulty,
+      location,
+      terrain,
+      elevationGain,
+      estimatedTime,
+    } = req.body;
 
     const route = await Route.findById(id);
 
@@ -307,27 +316,78 @@ export const updateRoute = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: "Route not found" });
     }
 
+    // Authorization check: only creator can edit
     if (route.userId.toString() !== req.user?._id?.toString()) {
-      return res.status(403).json({ message: "Unauthorized" });
+      return res.status(403).json({
+        message: "Unauthorized: You can only edit your own routes",
+      });
     }
 
-    const updatedRoute = await Route.findByIdAndUpdate(
-      id,
-      {
-        name,
-        description,
-        path,
-        endTime,
-        distance,
-        duration,
-        $push: { points: { $each: points } },
-      },
-      { new: true }
-    );
+    // Build update object with only provided fields
+    const updateData: any = {};
 
-    res.status(200).json(updatedRoute);
-  } catch (error) {
-    res.status(500).json({ message: "Error updating route", error });
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (isPublic !== undefined) {
+      // Convert to boolean
+      if (typeof isPublic === "string") {
+        updateData.isPublic = isPublic.toLowerCase() === "true";
+      } else if (typeof isPublic === "boolean") {
+        updateData.isPublic = isPublic;
+      }
+    }
+    if (routeType !== undefined) {
+      // Validate routeType
+      if (
+        !["Running", "Cycling", "Walking", "Hiking", "Other"].includes(
+          routeType
+        )
+      ) {
+        return res.status(400).json({
+          message: "Invalid route type",
+          detail: `routeType must be one of: Running, Cycling, Walking, Hiking, Other`,
+        });
+      }
+      updateData.routeType = routeType;
+    }
+    if (difficulty !== undefined) {
+      // Validate difficulty
+      if (!["Easy", "Moderate", "Hard"].includes(difficulty)) {
+        return res.status(400).json({
+          message: "Invalid difficulty",
+          detail: `difficulty must be one of: Easy, Moderate, Hard`,
+        });
+      }
+      updateData.difficulty = difficulty;
+    }
+    if (location !== undefined) updateData.location = location;
+    if (terrain !== undefined) {
+      // Validate terrain
+      if (!["road", "trail", "mixed"].includes(terrain)) {
+        return res.status(400).json({
+          message: "Invalid terrain",
+          detail: `terrain must be one of: road, trail, mixed`,
+        });
+      }
+      updateData.terrain = terrain;
+    }
+    if (elevationGain !== undefined) updateData.elevationGain = elevationGain;
+    if (estimatedTime !== undefined) updateData.estimatedTime = estimatedTime;
+
+    const updatedRoute = await Route.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+
+    res.status(200).json({
+      message: "Route updated successfully",
+      route: updatedRoute,
+    });
+  } catch (error: any) {
+    console.error("Error updating route:", error);
+    res.status(500).json({
+      message: "Error updating route",
+      error: error.message,
+    });
   }
 };
 
@@ -499,16 +559,49 @@ export const uploadRouteScreenshot = async (
   }
 };
 
-// Get public routes for community page
+// Get public routes for community page (UPDATED: populate user info)
 export const getPublicRoutes = async (req: AuthRequest, res: Response) => {
   try {
-    const routes = await Route.find({ isPublic: true }).sort({
-      createdAt: -1,
-    });
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
 
-    res.status(200).json(routes);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching public routes", error });
+    const routes = await Route.find({ isPublic: true })
+      .populate("userId", "username name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await Route.countDocuments({ isPublic: true });
+
+    // Transform to include user info in the expected format
+    const transformedRoutes = routes.map((route: any) => ({
+      ...route.toObject(),
+      user: route.userId
+        ? {
+            _id: route.userId._id,
+            username: route.userId.username,
+            name: route.userId.name,
+          }
+        : undefined,
+    }));
+
+    res.status(200).json({
+      routes: transformedRoutes,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error: any) {
+    console.error("Error fetching public routes:", error);
+    res.status(500).json({
+      message: "Error fetching public routes",
+      error: error.message,
+    });
   }
 };
 

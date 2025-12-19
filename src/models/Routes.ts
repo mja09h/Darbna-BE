@@ -22,7 +22,7 @@ export interface IRoute extends Document {
   duration: number;
   points: IPoint[];
 
-  // NEW FIELDS
+  // Existing fields
   isPublic: boolean;
   routeType: string;
   screenshot?: {
@@ -33,6 +33,14 @@ export interface IRoute extends Document {
     url: string;
     uploadedAt: Date;
   }>;
+
+  // NEW FIELDS FOR MODAL
+  elevationGain?: number; // Total elevation gain in meters
+  estimatedTime?: string; // e.g., "1-2 hr"
+  difficulty?: "Easy" | "Moderate" | "Hard";
+  rating?: number; // Average rating 0-5
+  location?: string; // Geographic location description
+  terrain?: "road" | "trail" | "mixed";
 
   createdAt: Date;
   updatedAt: Date;
@@ -83,6 +91,21 @@ const routeSchema: Schema = new Schema(
         uploadedAt: { type: Date },
       },
     ],
+    // NEW FIELDS
+    elevationGain: { type: Number, default: 0 },
+    estimatedTime: { type: String },
+    difficulty: {
+      type: String,
+      enum: ["Easy", "Moderate", "Hard"],
+      default: "Moderate",
+    },
+    rating: { type: Number, min: 0, max: 5, default: 0 },
+    location: { type: String },
+    terrain: {
+      type: String,
+      enum: ["road", "trail", "mixed"],
+      default: "trail",
+    },
   },
   { timestamps: true }
 );
