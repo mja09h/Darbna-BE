@@ -13,8 +13,12 @@ import {
     getFollowing,
     getUserProfile,
     updatePassword,
+    updateUsername,
+    updateEmail,
+    updatePhone,
+    verifyEmail,
+    requestVerificationCode,
     login,
-    appleLogin,
 } from './users.controller';
 import { auth } from '../../middlewares/auth';
 
@@ -23,17 +27,24 @@ const router = Router();
 // Public endpoints - registration, login, and public profile viewing
 router.post('/', register);
 router.post('/login', login);
+// Verification endpoints (Authenticated users only in production usually, but kept public here for flexibility)
+router.post('/request-verification', requestVerificationCode);
+router.post('/verify-email', verifyEmail);
+
 router.get('/username/:username', getUserByUsername);
 router.get('/:id', getUserById);
 router.get('/:id/profile', getUserProfile);
 
-router.post('/apple', appleLogin);
 
 // Protected endpoints - require authentication
 router.get('/', auth, getUsers); // User discovery may require auth
 router.put('/:id', auth, upload.single('profilePicture'), updateUser);
 router.put('/:id/password', auth, updatePassword);
+router.put('/:id/username', auth, updateUsername);
+router.put('/:id/email', auth, updateEmail);
+router.put('/:id/phone', auth, updatePhone);
 router.delete('/:id', auth, deleteUser);
+
 router.post('/:id/follow', auth, followUser);
 router.post('/:id/unfollow', auth, unfollowUser);
 router.get('/:id/followers', auth, getFollowers);

@@ -1,11 +1,12 @@
 import e, { Request, Response } from "express";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import User from "../../models/Users";
-import appleSignin from "apple-signin-auth";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "../../types/User";
+import sendEmail from "../../utils/email";
 
-const APPLE_BUNDLE_ID = "com.darbna.app.v";
+
 
 const getUsers = async (req: Request, res: Response) => {
     try {
@@ -52,13 +53,18 @@ const register = async (req: Request, res: Response) => {
         }
 
         // Let the User model's pre-save hook handle password hashing
+
         const user = await User.create({
             username: normalizedUsername,
             email: normalizedEmail,
             password: password, // Pass plain password, pre-save hook will hash it
             name,
             phone,
+            isVerified: false
         });
+
+        // Verification is now optional and triggered manually by the user from settings
+        // No email sent here
 
         const token = jwt.sign(
             { _id: user._id, username: user.username, email: user.email },
@@ -94,6 +100,13 @@ const login = async (req: Request, res: Response) => {
                 .status(400)
                 .json({ message: "User not found", success: false });
         }
+
+        /* 
+        // Optional: Enforce email verification before login
+        if (!user.isVerified) {
+             return res.status(401).json({ message: 'Please verify your email to log in', success: false });
+        }
+        */
 
         if (!user.password) {
             return res.status(400).json({
@@ -133,7 +146,7 @@ const login = async (req: Request, res: Response) => {
 const updateUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, country, bio, phone, profilePicture } = req.body;
+        const { name, country, bio, profilePicture } = req.body;
         const authReq = req as AuthRequest;
         console.log("req.body", req.body);
 
@@ -173,6 +186,112 @@ const updateUser = async (req: Request, res: Response) => {
         res.status(500).json({ message: "Error updating user", success: false });
     }
 };
+
+const updateUsername = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res
+                .status(400)
+                .json({ message: "Missing username or password", success: false });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found", success: false });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password as string);
+        if (!isPasswordValid) {
+            return res.status(400).json({ message: "Invalid password", success: false });
+        }
+
+        user.username = username;
+        await user.save();
+
+        res.status(200).json({ message: "Username updated successfully", success: true });
+    } catch (error) {
+        console.error("Update username error:", error);
+        res.status(500).json({ message: "Error updating username", success: false });
+    }
+};
+
+const updateEmail = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res
+                .status(400)
+                .json({ message: "Missing email or password", success: false });
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ message: "Invalid email address", success: false });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found", success: false });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password as string);
+        if (!isPasswordValid) {
+            return res.status(400).json({ message: "Invalid password", success: false });
+        }
+
+        user.email = email;
+        await user.save();
+        
+        user.isVerified = false;
+        await user.save();
+
+        res.status(200).json({ message: "Email updated successfully", success: true });
+    } catch (error) {
+        console.error("Update email error:", error);
+        res.status(500).json({ message: "Error updating email", success: false });
+    }
+};
+
+const updatePhone = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { phone, password } = req.body;
+
+
+        if (!phone || !password) {
+            return res
+                .status(400)
+                .json({ message: "Missing phone or password", success: false });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found", success: false });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password as string);
+        if (!isPasswordValid) {
+            return res.status(400).json({ message: "Invalid password", success: false });
+        }
+
+        if (!/^\d+$/.test(phone)) {
+            return res.status(400).json({ message: "Phone number must contain only digits", success: false });
+        }
+
+        user.phone = phone;
+        await user.save();
+
+        res.status(200).json({ message: "Phone updated successfully", success: true });
+    } catch (error) {
+        console.error("Update phone error:", error);
+        res.status(500).json({ message: "Error updating phone", success: false });
+    }
+};
+
 
 const updatePassword = async (req: Request, res: Response) => {
     try {
@@ -408,67 +527,92 @@ const getUserProfile = async (req: Request, res: Response) => {
     }
 };
 
-const appleLogin = async (req: Request, res: Response) => {
+
+const verifyEmail = async (req: Request, res: Response) => {
     try {
-        const { identityToken, email, fullName } = req.body;
+        const { email, code } = req.body;
 
-        const appleUser = await appleSignin.verifyIdToken(identityToken, {
-            audience: APPLE_BUNDLE_ID,
-            ignoreExpiration: true,
-        });
-
-        const { sub: appleId, email: tokenEmail } = appleUser;
-        const userEmail = email || tokenEmail;
-
-        let user = await User.findOne({ appleId });
-
-        if (!user && userEmail) {
-            user = await User.findOne({ email: userEmail });
+        if (!email || !code) {
+            return res.status(400).json({ message: "Email and code are required", success: false });
         }
+
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
 
         if (!user) {
-            if (!userEmail) {
-                return res
-                    .status(400)
-                    .json({ message: "Email required for sign up", success: false });
-            }
-
-            const username =
-                userEmail.split("@")[0] + Math.floor(Math.random() * 10000);
-            const name = fullName
-                ? `${fullName.givenName} ${fullName.familyName}`
-                : "User";
-
-            user = await User.create({
-                email: userEmail,
-                name,
-                username,
-                appleId,
-                authProvider: "apple",
-                country: "",
-            });
-        } else {
-            if (!user.appleId) {
-                user.appleId = appleId;
-                await user.save();
-            }
+            return res.status(404).json({ message: "User not found", success: false });
         }
 
-        const token = jwt.sign(
-            { _id: user._id, username: user.username, email: user.email },
-            process.env.JWT_SECRET as string,
-            { expiresIn: "30d" }
-        );
+        if (user.isVerified) {
+            return res.status(400).json({ message: "Email is already verified", success: false });
+        }
 
-        const userResponse = user.toObject();
-        delete (userResponse as any).password;
+        if (
+            !user.verificationCode ||
+            user.verificationCode !== code ||
+            !user.verificationCodeExpires ||
+            user.verificationCodeExpires < new Date()
+        ) {
+            return res.status(400).json({ message: "Invalid or expired verification code", success: false });
+        }
 
-        res.status(200).json({ success: true, token, user: userResponse });
+        user.isVerified = true;
+        user.verificationCode = undefined;
+        user.verificationCodeExpires = undefined;
+        await user.save();
+
+        res.status(200).json({ message: "Email verified successfully", success: true });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Apple login failed", success: false });
+        console.error('Verify email error:', error);
+        res.status(500).json({ message: "Error verifying email", success: false });
     }
 };
+
+const requestVerificationCode = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "Email is required", success: false });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found", success: false });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ message: "Email is already verified", success: false });
+        }
+
+        // Generate 6-digit code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.verificationCode = verificationCode;
+        user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        await user.save();
+
+        const message = `Your verification code is: ${verificationCode}\n\n` +
+            `This code will expire in 10 minutes.\n` +
+            `If you did not request this, please ignore this email.\n`;
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Account Verification Code',
+                message,
+            });
+            res.status(200).json({ message: "Verification code sent", success: true });
+        } catch (error) {
+            console.error('Email send error:', error);
+            res.status(500).json({ message: "Error sending verification email", success: false });
+        }
+
+    } catch (error) {
+        console.error('Request verification code error:', error);
+        res.status(500).json({ message: "Error requesting verification code", success: false });
+    }
+};
+
 
 export {
     getUsers,
@@ -484,5 +628,9 @@ export {
     getFollowing,
     getUserProfile,
     updatePassword,
-    appleLogin,
+    updateUsername,
+    updateEmail,
+    updatePhone,
+    verifyEmail,
+    requestVerificationCode,
 };
