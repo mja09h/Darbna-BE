@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 const SOS_RATE_LIMIT_MINUTES = 30;
 
 // CREATE SOS ALERT
+// CREATE SOS ALERT
 export const createSOSAlert = async (req: Request, res: Response) => {
   const { latitude, longitude } = req.body;
   const authReq = req as AuthRequest;
@@ -48,10 +49,21 @@ export const createSOSAlert = async (req: Request, res: Response) => {
     await user.save();
 
     const alertWithUser = await newAlert.populate("user", "username _id");
-    req.app.get("io").emit("new-sos-alert", alertWithUser);
-    sendSosAlertToAllUsers(alertWithUser);
 
+    // Respond to the user immediately
     res.status(201).json(alertWithUser);
+
+    // --- Perform slow tasks in the background ---
+    // Use a proper background job queue (e.g., BullMQ, RabbitMQ) in production
+    setTimeout(() => {
+      try {
+        req.app.get("io").emit("new-sos-alert", alertWithUser);
+        sendSosAlertToAllUsers(alertWithUser);
+      } catch (backgroundError) {
+        console.error("Error in background SOS tasks:", backgroundError);
+      }
+    }, 0);
+
   } catch (error) {
     console.error("Error creating SOS alert:", error);
     res.status(500).json({ message: "Server error while creating SOS alert" });

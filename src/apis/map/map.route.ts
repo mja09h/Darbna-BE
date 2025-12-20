@@ -1,12 +1,18 @@
-import { Router } from "express";
-import { getNearbyLocations, getPOIsWithinPolygon, getAllRoutes, getHeatmapData, getTile } from "./map.Controller";
+import express from "express";
+import {
+  getNearbyLocations,
+  getPOIsWithinPolygon,
+  getAllRoutes,
+  getTile,
+} from "./map.Controller";
 
-const mapRouter = Router();
+const router = express.Router();
 
-mapRouter.get("/locations/nearby", getNearbyLocations);
-mapRouter.post("/pois/within", getPOIsWithinPolygon);
-mapRouter.get("/routes", getAllRoutes);
-mapRouter.get("/heatmap", getHeatmapData);
-mapRouter.get("/tiles/:z/:x/:y.png", getTile);
+router.get("/locations", getNearbyLocations);
+router.post("/pois/within", getPOIsWithinPolygon);
+router.get("/routes", getAllRoutes);
+router.get("/tiles/:z/:x/:y.png", getTile);
 
-export default mapRouter;
+// The /heatmap route has been removed
+
+export default router;
