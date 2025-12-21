@@ -10,8 +10,7 @@ export interface IUser extends Document {
   phone: string;
   country: string;
   googleId?: string;
-  appleId?: string;
-  authProvider: "local" | "google" | "apple";
+  authProvider: "local" | "google";
   profilePicture: string;
   coverPicture: string;
   bio: string;
@@ -71,12 +70,9 @@ const UserSchema = new Schema<IUser>(
     googleId: {
       type: String,
     },
-    appleId: {
-      type: String,
-    },
     authProvider: {
       type: String,
-      enum: ["local", "google", "apple"],
+      enum: ["local", "google"],
       default: "local",
     },
     profilePicture: {

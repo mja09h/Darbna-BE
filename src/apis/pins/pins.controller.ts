@@ -70,6 +70,9 @@ const createPin = async (req: Request, res: Response) => {
 
         await newPin.save();
 
+        1        // Populate user data before returning
+        await newPin.populate("userId", "username name _id profilePicture email");
+
         res.status(201).json(newPin);
 
     } catch (error: any) {
@@ -83,7 +86,7 @@ const createPin = async (req: Request, res: Response) => {
 
 const getPins = async (req: Request, res: Response) => {
     try {
-        const pins = await Pin.find().populate("userId", "username _id");
+        const pins = await Pin.find().populate("userId", "username name _id profilePicture email");
 
         if (!pins) {
             return res.status(404).json({ message: "No pins found" });
@@ -107,7 +110,7 @@ const getPinById = async (req: Request, res: Response) => {
             });
         }
 
-        const pin = await Pin.findById(id).populate("userId", "username _id");
+        const pin = await Pin.findById(id).populate("userId", "username name _id profilePicture email");
 
         if (!pin) {
             return res.status(404).json({ message: "Pin not found" });
@@ -206,6 +209,9 @@ const updatePin = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Pin not found" });
         }
 
+        // Populate user data before returning
+        await pin.populate("userId", "username name _id profilePicture email");
+
         res.status(200).json(pin);
     } catch (error: any) {
         console.error('Update pin error:', error);
@@ -267,7 +273,7 @@ const getPinsByUserId = async (req: Request, res: Response) => {
             });
         }
 
-        const pins = await Pin.find({ userId }).populate("userId", "username _id");
+        const pins = await Pin.find({ userId }).populate("userId", "username name _id profilePicture email");
 
         if (!pins || pins.length === 0) {
             return res.status(404).json({ message: "No pins found for this user" });
@@ -283,7 +289,7 @@ const getPinsByUserId = async (req: Request, res: Response) => {
 const getPinsByCategory = async (req: Request, res: Response) => {
     try {
         const { category } = req.params;
-        const pins = await Pin.find({ category }).populate("userId", "username _id");
+        const pins = await Pin.find({ category }).populate("userId", "username name _id profilePicture email");
 
         if (!pins) {
             return res.status(404).json({ message: "No pins found" });
@@ -299,7 +305,7 @@ const getPinsByCategory = async (req: Request, res: Response) => {
 const getPinsByTitle = async (req: Request, res: Response) => {
     try {
         const { title } = req.params;
-        const pins = await Pin.find({ title }).populate("userId", "username _id");
+        const pins = await Pin.find({ title }).populate("userId", "username name _id profilePicture email");
 
         if (!pins) {
             return res.status(404).json({ message: "No pins found" });

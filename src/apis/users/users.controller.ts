@@ -63,8 +63,131 @@ const register = async (req: Request, res: Response) => {
             isVerified: false
         });
 
-        // Verification is now optional and triggered manually by the user from settings
-        // No email sent here
+        // Send welcome email (don't block registration if email fails)
+        try {
+            const message = `Welcome to Darbna, ${name}!\n\n` +
+                `Thank you for joining our community. We're excited to have you on board!\n\n` +
+                `To get started, please verify your email address by following these steps:\n\n` +
+                `1. Go to profile\n` +
+                `2. Tap the gear icon in the right corner\n` +
+                `3. Click Account Information\n` +
+                `4. Click Email\n` +
+                `5. Click Verify Email\n\n` +
+                `If you have any questions, feel free to reach out to our support team.\n\n` +
+                `Welcome aboard!\n` +
+                `The Darbna Team`;
+
+            const htmlMessage = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Welcome to Darbna</title>
+                </head>
+                <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f4;">
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f4f4f4; padding: 20px 0;">
+                        <tr>
+                            <td align="center" style="padding: 20px 0;">
+                                <table role="presentation" style="width: 100%; max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                                    <!-- Header -->
+                                    <tr>
+                                        <td style="background: linear-gradient(135deg, #2c120c 0%, #4a2418 100%); padding: 50px 30px; text-align: center;">
+                                            <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Welcome to Darbna!</h1>
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- Content -->
+                                    <tr>
+                                        <td style="padding: 40px 30px;">
+                                            <p style="margin: 0 0 20px 0; color: #333333; font-size: 18px; line-height: 1.6; font-weight: 600;">
+                                                Hello ${name}! 👋
+                                            </p>
+                                            <p style="margin: 0 0 30px 0; color: #555555; font-size: 16px; line-height: 1.6;">
+                                                Thank you for joining Darbna! We're thrilled to have you as part of our community. You're now ready to explore and connect with fellow adventurers.
+                                            </p>
+                                            
+                                            <!-- Verification Section -->
+                                            <div style="background-color: #f8f9fa; border-left: 4px solid #2c120c; padding: 25px 20px; margin: 30px 0; border-radius: 8px;">
+                                                <h2 style="margin: 0 0 15px 0; color: #2c120c; font-size: 20px; font-weight: 600;">
+                                                    📧 Verify Your Email Address
+                                                </h2>
+                                                <p style="margin: 0 0 20px 0; color: #555555; font-size: 15px; line-height: 1.6;">
+                                                    To get started and ensure your account security, please verify your email address by following these simple steps:
+                                                </p>
+                                                
+                                                <!-- Steps -->
+                                                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                                                    <div style="margin-bottom: 15px; padding-left: 10px;">
+                                                        <p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.8;">
+                                                            <strong style="color: #2c120c;">Step 1:</strong> Go to your <strong>Profile</strong>
+                                                        </p>
+                                                    </div>
+                                                    <div style="margin-bottom: 15px; padding-left: 10px;">
+                                                        <p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.8;">
+                                                            <strong style="color: #2c120c;">Step 2:</strong> Tap the <strong>⚙️ gear icon</strong> in the right corner
+                                                        </p>
+                                                    </div>
+                                                    <div style="margin-bottom: 15px; padding-left: 10px;">
+                                                        <p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.8;">
+                                                            <strong style="color: #2c120c;">Step 3:</strong> Click <strong>Account Information</strong>
+                                                        </p>
+                                                    </div>
+                                                    <div style="margin-bottom: 15px; padding-left: 10px;">
+                                                        <p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.8;">
+                                                            <strong style="color: #2c120c;">Step 4:</strong> Click <strong>Email</strong>
+                                                        </p>
+                                                    </div>
+                                                    <div style="margin-bottom: 0; padding-left: 10px;">
+                                                        <p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.8;">
+                                                            <strong style="color: #2c120c;">Step 5:</strong> Click <strong>Verify Email</strong>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <p style="margin: 30px 0 0 0; color: #777777; font-size: 14px; line-height: 1.6;">
+                                                Once verified, you'll have full access to all Darbna features and can start sharing your adventures with the community!
+                                            </p>
+                                            
+                                            <p style="margin: 20px 0 0 0; color: #999999; font-size: 12px; line-height: 1.5;">
+                                                If you have any questions or need assistance, our support team is here to help.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- Footer -->
+                                    <tr>
+                                        <td style="background-color: #f8f9fa; padding: 30px 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                                            <p style="margin: 0 0 10px 0; color: #2c120c; font-size: 16px; font-weight: 600;">
+                                                Welcome aboard! 🎉
+                                            </p>
+                                            <p style="margin: 0 0 15px 0; color: #999999; font-size: 12px;">
+                                                © ${new Date().getFullYear()} Darbna. All rights reserved.
+                                            </p>
+                                            <p style="margin: 0; color: #bbbbbb; font-size: 11px;">
+                                                This is an automated email. Please do not reply.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+            `;
+
+            await sendEmail({
+                email: user.email,
+                subject: 'Welcome to Darbna! 🎉',
+                message,
+                html: htmlMessage,
+            });
+        } catch (emailError) {
+            // Log error but don't fail registration
+            console.error('Welcome email send error:', emailError);
+        }
 
         const token = jwt.sign(
             { _id: user._id, username: user.username, email: user.email },

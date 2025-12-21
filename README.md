@@ -120,37 +120,6 @@ POST /api/auth/google
 }
 ```
 
-#### Apple Login
-
-```http
-POST /api/auth/apple
-```
-
-**Public Endpoint** - No authentication required
-
-**Request Body:**
-
-```json
-{
-  "identityToken": "apple_identity_token",
-  "email": "user@example.com",
-  "fullName": {
-    "givenName": "John",
-    "familyName": "Doe"
-  }
-}
-```
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": { ... }
-}
-```
-
 #### Forgot Password
 
 ```http
