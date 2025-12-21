@@ -34,7 +34,17 @@ export interface IRoute extends Document {
     uploadedAt: Date;
   }>;
 
-  // NEW FIELDS FOR MODAL
+  // NEW FIELDS FOR START AND END POINTS
+  startPoint?: {
+    latitude: number;
+    longitude: number;
+  };
+  endPoint?: {
+    latitude: number;
+    longitude: number;
+  };
+
+  // Existing fields
   elevationGain?: number; // Total elevation gain in meters
   estimatedTime?: string; // e.g., "1-2 hr"
   difficulty?: "Easy" | "Moderate" | "Hard";
@@ -91,7 +101,16 @@ const routeSchema: Schema = new Schema(
         uploadedAt: { type: Date },
       },
     ],
-    // NEW FIELDS
+    // NEW FIELDS FOR START AND END POINTS
+    startPoint: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+    },
+    endPoint: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+    },
+    // Existing fields
     elevationGain: { type: Number, default: 0 },
     estimatedTime: { type: String },
     difficulty: {

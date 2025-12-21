@@ -18,6 +18,8 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       duration,
       isPublic,
       routeType,
+      startPoint,
+      endPoint,
     } = req.body;
 
     const userId = req.user?._id;
@@ -62,6 +64,8 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
     );
     console.log("isPublic:", isPublic, "| type:", typeof isPublic);
     console.log("routeType:", routeType, "| type:", typeof routeType);
+    console.log("startPoint:", startPoint, "| type:", typeof startPoint);
+    console.log("endPoint:", endPoint, "| type:", typeof endPoint);
 
     // Validation with detailed error messages
     console.log("\n=== VALIDATION CHECKS ===");
@@ -227,6 +231,29 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
 
     console.log("\n=== ALL VALIDATIONS PASSED, CREATING ROUTE ===");
 
+    // Calculate start and end points if not provided
+    let calculatedStartPoint = startPoint;
+    let calculatedEndPoint = endPoint;
+
+    // If start point not provided, use first coordinate from path
+    if (!calculatedStartPoint && path.coordinates.length > 0) {
+      calculatedStartPoint = {
+        longitude: path.coordinates[0][0],
+        latitude: path.coordinates[0][1],
+      };
+    }
+
+    // If end point not provided, use last coordinate from path
+    if (!calculatedEndPoint && path.coordinates.length > 0) {
+      calculatedEndPoint = {
+        longitude: path.coordinates[path.coordinates.length - 1][0],
+        latitude: path.coordinates[path.coordinates.length - 1][1],
+      };
+    }
+
+    console.log("Calculated startPoint:", calculatedStartPoint);
+    console.log("Calculated endPoint:", calculatedEndPoint);
+
     const newRoute = await Route.create({
       userId,
       name,
@@ -238,6 +265,8 @@ export const createRoute = async (req: AuthRequest, res: Response) => {
       duration,
       isPublic: isPublicBool,
       routeType,
+      startPoint: calculatedStartPoint,
+      endPoint: calculatedEndPoint,
     });
 
     console.log("✓ Route created successfully, ID:", newRoute._id);
