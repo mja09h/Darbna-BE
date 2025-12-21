@@ -245,7 +245,7 @@ const updateEmail = async (req: Request, res: Response) => {
 
         user.email = email;
         await user.save();
-        
+
         user.isVerified = false;
         await user.save();
 
@@ -595,11 +595,84 @@ const requestVerificationCode = async (req: Request, res: Response) => {
             `This code will expire in 10 minutes.\n` +
             `If you did not request this, please ignore this email.\n`;
 
+        const htmlMessage = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Email Verification Code - Darbna</title>
+            </head>
+            <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f4;">
+                <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f4f4f4; padding: 20px 0;">
+                    <tr>
+                        <td align="center" style="padding: 20px 0;">
+                            <table role="presentation" style="width: 100%; max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                                <!-- Header -->
+                                <tr>
+                                    <td style="background: linear-gradient(135deg, #2c120c 0%, #4a2418 100%); padding: 40px 30px; text-align: center;">
+                                        <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">Verify Your Email</h1>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Content -->
+                                <tr>
+                                    <td style="padding: 40px 30px;">
+                                        <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                                            Hello ${user.name || 'there'},
+                                        </p>
+                                        <p style="margin: 0 0 30px 0; color: #555555; font-size: 16px; line-height: 1.6;">
+                                            Thank you for signing up for Darbna! To complete your registration and verify your email address, please use the verification code below:
+                                        </p>
+                                        
+                                        <!-- Code Box -->
+                                        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 2px dashed #2c120c; border-radius: 12px; padding: 30px 20px; text-align: center; margin: 30px 0;">
+                                            <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
+                                            <p style="margin: 0; font-size: 42px; font-weight: 700; color: #2c120c; letter-spacing: 8px; font-family: 'Courier New', monospace;">${verificationCode}</p>
+                                        </div>
+                                        
+                                        <!-- Info Box -->
+                                        <div style="background-color: #d1ecf1; border-left: 4px solid #0dcaf0; padding: 15px 20px; margin: 30px 0; border-radius: 4px;">
+                                            <p style="margin: 0; color: #055160; font-size: 14px; line-height: 1.5;">
+                                                <strong>⏱ Important:</strong> This code will expire in <strong>10 minutes</strong>. Please verify your email promptly.
+                                            </p>
+                                        </div>
+                                        
+                                        <p style="margin: 30px 0 0 0; color: #777777; font-size: 14px; line-height: 1.6;">
+                                            If you did not create an account with Darbna, please ignore this email.
+                                        </p>
+                                        
+                                        <p style="margin: 20px 0 0 0; color: #999999; font-size: 12px; line-height: 1.5;">
+                                            <strong>Security Tip:</strong> Never share this code with anyone. Darbna staff will never ask for your verification code.
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background-color: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                                        <p style="margin: 0 0 10px 0; color: #999999; font-size: 12px;">
+                                            © ${new Date().getFullYear()} Darbna. All rights reserved.
+                                        </p>
+                                        <p style="margin: 0; color: #bbbbbb; font-size: 11px;">
+                                            This is an automated email. Please do not reply.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+        `;
+
         try {
             await sendEmail({
                 email: user.email,
-                subject: 'Account Verification Code',
+                subject: 'Account Verification Code - Darbna',
                 message,
+                html: htmlMessage,
             });
             res.status(200).json({ message: "Verification code sent", success: true });
         } catch (error) {
