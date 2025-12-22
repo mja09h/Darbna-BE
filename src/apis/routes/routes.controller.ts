@@ -1,6 +1,8 @@
 import { Response } from "express";
 import Route from "../../models/Routes";
 import { AuthRequest } from "../../types/User";
+import path from "path";
+import fs from "fs-extra"; 
 
 export const createRoute = async (req: AuthRequest, res: Response) => {
   try {
@@ -406,6 +408,11 @@ export const updateRoute = async (req: AuthRequest, res: Response) => {
     const updatedRoute = await Route.findByIdAndUpdate(id, updateData, {
       new: true,
     });
+    // Inside updateRoute function, around line 410
+    res.status(200).json({
+      message: "Route updated successfully",
+      route: updatedRoute, // Ensure this line exists
+    });
 
     res.status(200).json({
       message: "Route updated successfully",
@@ -418,6 +425,7 @@ export const updateRoute = async (req: AuthRequest, res: Response) => {
       error: error.message,
     });
   }
+  
 };
 
 // Delete a route
@@ -499,49 +507,66 @@ export const uploadRouteImages = async (req: AuthRequest, res: Response) => {
   try {
     const { routeId } = req.params;
     const userId = req.user?._id;
+    const { images } = req.body; // Expecting { images: ["data:image/jpeg;base64,..."] }
+
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ message: "No image data received." });
+    }
 
     const route = await Route.findById(routeId);
     if (!route) {
-      return res.status(404).json({ message: "Route not found" });
+      return res.status(404).json({ message: "Route not found." });
     }
 
     if (route.userId.toString() !== userId?.toString()) {
-      return res.status(403).json({ message: "Unauthorized" });
+      return res.status(403).json({ message: "Unauthorized." });
     }
 
-    const currentImageCount =
-      (route.images?.length || 0) + (route.screenshot ? 1 : 0);
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    await fs.ensureDir(uploadsDir);
 
-    const uploadedFiles = req.files as Express.Multer.File[];
+    const imageUrls = [];
+    for (const base64Image of images) {
+      if (
+        typeof base64Image !== "string" ||
+        !base64Image.startsWith("data:image")
+      ) {
+        console.error("Invalid image data format received.");
+        continue;
+      }
 
-    if (!uploadedFiles || uploadedFiles.length === 0) {
-      return res.status(400).json({ message: "No files uploaded" });
+      const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
+
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      const filename = `route-image-${uniqueSuffix}.jpeg`;
+      const filepath = path.join(uploadsDir, filename);
+
+      await fs.writeFile(filepath, imageBuffer);
+      imageUrls.push({ url: `/uploads/${filename}`, uploadedAt: new Date() });
     }
 
-    if (currentImageCount + uploadedFiles.length > 4) {
-      return res.status(400).json({
-        message: `Can only upload ${
-          4 - currentImageCount
-        } more images (max 4 total including screenshot)`,
-      });
+    if (imageUrls.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No valid images were processed." });
     }
-
-    const imageUrls = uploadedFiles.map((file) => ({
-      url: `/uploads/${file.filename}`,
-      uploadedAt: new Date(),
-    }));
 
     const updatedRoute = await Route.findByIdAndUpdate(
       routeId,
-      {
-        $push: { images: { $each: imageUrls } },
-      },
+      { $push: { images: { $each: imageUrls } } },
       { new: true }
     );
 
     res.status(200).json(updatedRoute);
-  } catch (error) {
-    res.status(500).json({ message: "Error uploading images", error });
+  } catch (error: any) {
+    console.error("Error in uploadRouteImages:", error);
+    res
+      .status(500)
+      .json({
+        message: "Server error during image upload.",
+        detail: error.message,
+      });
   }
 };
 
