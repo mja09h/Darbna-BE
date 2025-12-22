@@ -7,10 +7,6 @@ import {
     deleteUser,
     getUserById,
     getUserByUsername,
-    followUser,
-    unfollowUser,
-    getFollowers,
-    getFollowing,
     getUserProfile,
     updatePassword,
     updateUsername,
@@ -44,10 +40,5 @@ router.put('/:id/username', auth, updateUsername);
 router.put('/:id/email', auth, updateEmail);
 router.put('/:id/phone', auth, updatePhone);
 router.delete('/:id', auth, deleteUser);
-
-router.post('/:id/follow', auth, followUser);
-router.post('/:id/unfollow', auth, unfollowUser);
-router.get('/:id/followers', auth, getFollowers);
-router.get('/:id/following', auth, getFollowing);
 
 export default router;

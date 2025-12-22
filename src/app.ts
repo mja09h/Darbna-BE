@@ -18,6 +18,7 @@ import sosRoutes from "./apis/SOS/SOS.route";
 import { startAlertExpirationJob } from "./jobs/alertExpiration";
 import foldersRoutes from "./apis/folders/folders.routes";
 import savedRoutesRoutes from "./apis/savedRoutes/savedRoutes.routes";
+import subscriptionsRoutes from "./apis/subscriptions/subscriptions.routes";
 
 // Load environment variables FIRST
 dotenv.config({ path: path.join(__dirname, "../.env") });
@@ -88,6 +89,7 @@ app.use("/api/routes", routesRoutes);
 app.use("/api/pins", pinsRoutes);
 app.use("/api/folders", foldersRoutes);
 app.use("/api/savedRoutes", savedRoutesRoutes);
+app.use("/api/subscriptions", subscriptionsRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

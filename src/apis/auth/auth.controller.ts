@@ -168,6 +168,13 @@ export const resetPassword = async (req: Request, res: Response) => {
             });
         }
 
+        if (newPassword.length < 5) {
+            return res.status(400).json({
+                message: 'Password must be at least 5 characters long',
+                success: false
+            });
+        }
+
         const normalizedEmail = email.toLowerCase().trim();
 
         // Find user by email
