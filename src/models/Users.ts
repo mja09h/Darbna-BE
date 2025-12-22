@@ -14,8 +14,6 @@ export interface IUser extends Document {
   profilePicture: string;
   coverPicture: string;
   bio: string;
-  followers: Types.ObjectId[];
-  following: Types.ObjectId[];
   isAdmin: boolean;
   password?: string;
   location: {
@@ -31,6 +29,26 @@ export interface IUser extends Document {
   passwordResetExpires?: Date;
   passwordResetCode?: string;
   passwordResetCodeExpires?: Date;
+  subscriptionPlan?: "free" | "premium";
+  subscriptionStatus?: "active" | "cancelled";
+  cardInfo?: {
+    cardNumber: string; // encrypted
+    cardHolderName: string;
+    expiryMonth: number;
+    expiryYear: number;
+    cvv: string; // encrypted
+    billingAddress: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    };
+    cardType: string;
+    lastFourDigits: string; // for display purposes
+  };
+  subscriptionStartDate?: Date;
+  subscriptionEndDate?: Date;
   comparePassword(password: string): Promise<boolean>;
 }
 
@@ -87,16 +105,6 @@ const UserSchema = new Schema<IUser>(
       type: String,
       default: "",
     },
-    followers: {
-      type: [Types.ObjectId],
-      ref: "User",
-      default: [],
-    },
-    following: {
-      type: [Types.ObjectId],
-      ref: "User",
-      default: [],
-    },
     isAdmin: {
       type: Boolean,
       default: false,
@@ -138,6 +146,62 @@ const UserSchema = new Schema<IUser>(
       type: String,
     },
     passwordResetCodeExpires: {
+      type: Date,
+    },
+    subscriptionPlan: {
+      type: String,
+      enum: ["free", "premium"],
+      default: "free",
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ["active", "cancelled"],
+      default: "active",
+    },
+    cardInfo: {
+      cardNumber: {
+        type: String,
+      },
+      cardHolderName: {
+        type: String,
+      },
+      expiryMonth: {
+        type: Number,
+      },
+      expiryYear: {
+        type: Number,
+      },
+      cvv: {
+        type: String,
+      },
+      billingAddress: {
+        street: {
+          type: String,
+        },
+        city: {
+          type: String,
+        },
+        state: {
+          type: String,
+        },
+        zip: {
+          type: String,
+        },
+        country: {
+          type: String,
+        },
+      },
+      cardType: {
+        type: String,
+      },
+      lastFourDigits: {
+        type: String,
+      },
+    },
+    subscriptionStartDate: {
+      type: Date,
+    },
+    subscriptionEndDate: {
       type: Date,
     },
   },

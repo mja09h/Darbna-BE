@@ -27,6 +27,12 @@ const register = async (req: Request, res: Response) => {
                 .json({ message: "Missing required fields: name, username, email, and password are required", success: false });
         }
 
+        if (password.length < 5) {
+            return res
+                .status(400)
+                .json({ message: "Password must be at least 5 characters long", success: false });
+        }
+
         if (!/^\d+$/.test(phone)) {
             return res
                 .status(400)
@@ -436,6 +442,12 @@ const updatePassword = async (req: Request, res: Response) => {
                 .json({ message: "New password is required", success: false });
         }
 
+        if (newPassword.length < 5) {
+            return res
+                .status(400)
+                .json({ message: "Password must be at least 5 characters long", success: false });
+        }
+
         const user = await User.findById(id);
         if (!user) {
             return res
@@ -535,100 +547,6 @@ const getUserByUsername = async (req: Request, res: Response) => {
         res
             .status(500)
             .json({ message: "Error getting user by username", success: false });
-    }
-};
-
-const followUser = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const authReq = req as AuthRequest;
-        const userId = authReq.user?._id?.toString();
-
-        if (!userId) {
-            return res.status(401).json({ message: "Unauthorized", success: false });
-        }
-
-        if (id === userId) {
-            return res
-                .status(400)
-                .json({ message: "You cannot follow yourself", success: false });
-        }
-
-        const targetUser = await User.findByIdAndUpdate(
-            id,
-            { $addToSet: { followers: userId } },
-            { new: true }
-        );
-
-        if (!targetUser) {
-            return res
-                .status(404)
-                .json({ message: "User not found", success: false });
-        }
-
-        await User.findByIdAndUpdate(userId, { $addToSet: { following: id } });
-
-        res.status(200).json({ success: true, data: targetUser });
-    } catch (error) {
-        console.error("Error following user:", error);
-        res.status(500).json({ message: "Error following user", success: false });
-    }
-};
-
-const unfollowUser = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const authReq = req as AuthRequest;
-        const userId = authReq.user?._id?.toString();
-
-        if (!userId) {
-            return res.status(401).json({ message: "Unauthorized", success: false });
-        }
-
-        const targetUser = await User.findByIdAndUpdate(
-            id,
-            { $pull: { followers: userId } },
-            { new: true }
-        );
-
-        if (!targetUser) {
-            return res
-                .status(404)
-                .json({ message: "User not found", success: false });
-        }
-
-        await User.findByIdAndUpdate(userId, { $pull: { following: id } });
-
-        res.status(200).json({ success: true, data: targetUser });
-    } catch (error) {
-        console.error("Error unfollowing user:", error);
-        res.status(500).json({ message: "Error unfollowing user", success: false });
-    }
-};
-
-const getFollowers = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const user = await User.findById(id);
-        res.status(200).json({ success: true, data: user?.followers });
-    } catch (error) {
-        console.error("Error getting followers:", error);
-        res
-            .status(500)
-            .json({ message: "Error getting followers", success: false });
-    }
-};
-
-const getFollowing = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const user = await User.findById(id);
-        res.status(200).json({ success: true, data: user?.following });
-    } catch (error) {
-        console.error("Error getting following:", error);
-        res
-            .status(500)
-            .json({ message: "Error getting following", success: false });
     }
 };
 
@@ -818,10 +736,6 @@ export {
     deleteUser,
     getUserById,
     getUserByUsername,
-    followUser,
-    unfollowUser,
-    getFollowers,
-    getFollowing,
     getUserProfile,
     updatePassword,
     updateUsername,
